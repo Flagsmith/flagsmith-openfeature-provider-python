@@ -1,6 +1,7 @@
 from unittest.mock import MagicMock
 
 import pytest
+from flagsmith import Flagsmith
 from flagsmith.exceptions import FlagsmithClientError
 from flagsmith.models import DefaultFlag, Flag, Flags
 from openfeature.evaluation_context import EvaluationContext
@@ -12,7 +13,7 @@ from openfeature_flagsmith.provider import FlagsmithProvider
 
 @pytest.fixture()
 def mock_flagsmith_client() -> MagicMock():
-    return MagicMock()
+    return MagicMock(spec=Flagsmith)
 
 
 def test_get_metadata(mock_flagsmith_client: MagicMock) -> None:
@@ -29,7 +30,7 @@ def test_resolve_boolean_details_when_type_mismatch(
     key = "my_feature"
     default_value = True
 
-    provider = FlagsmithProvider(mock_flagsmith_client)
+    provider = FlagsmithProvider(mock_flagsmith_client, use_boolean_config_value=True)
 
     mock_flagsmith_client.get_environment_flags.return_value = Flags(
         {key: Flag(feature_id=1, feature_name=key, enabled=True, value="foo")}
@@ -306,3 +307,22 @@ def test_identity_flags_are_used_if_targeting_key_provided(
     mock_flagsmith_client.get_identity_flags.assert_called_once_with(
         identifier=targeting_key, traits=traits
     )
+
+
+def test_resolve_boolean_details_uses_enabled_when_use_boolean_config_value_is_false(mock_flagsmith_client: MagicMock) -> None:
+    # Given
+    key = "key"
+
+    provider = FlagsmithProvider(mock_flagsmith_client, use_boolean_config_value=False)
+
+    mock_flagsmith_client.get_environment_flags.return_value = Flags(
+        {key: Flag(feature_id=1, feature_name=key, enabled=True, value=None)}
+    )
+
+    # When
+    result = provider.resolve_boolean_details(key=key, default_value=False)
+
+    # Then
+    assert result.value is True
+    assert result.error_code is None
+    assert result.reason is None

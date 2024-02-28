@@ -23,12 +23,15 @@ class FlagsmithProvider(AbstractProvider):
     def __init__(
         self,
         client: Flagsmith,
+        use_boolean_config_value: bool = False,
         return_value_for_disabled_flags: bool = False,
         use_flagsmith_defaults: bool = False,
+
     ):
         self._client = client
         self.return_value_for_disabled_flags = return_value_for_disabled_flags
         self.use_flagsmith_defaults = use_flagsmith_defaults
+        self.use_boolean_config_value = use_boolean_config_value
 
     def get_metadata(self) -> Metadata:
         return Metadata(name="FlagsmithProvider")
@@ -95,6 +98,9 @@ class FlagsmithProvider(AbstractProvider):
                 error_code=ErrorCode.FLAG_NOT_FOUND,
                 reason=Reason.ERROR,
             )
+
+        if flag_type == FlagType.BOOLEAN and not self.use_boolean_config_value:
+            return FlagResolutionDetails(value=flag.enabled)
 
         if not (self.return_value_for_disabled_flags or flag.enabled):
             return FlagResolutionDetails(
