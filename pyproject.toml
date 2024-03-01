@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "openfeature-provider-flagsmith"
-version = "0.1.0"
+version = "0.1.0.alpha1"
 description = "Openfeature provider for Flagsmith"
 authors = ["Matthew Elwell <matthew.elwell@flagsmith.com>"]
 readme = "README.md"
