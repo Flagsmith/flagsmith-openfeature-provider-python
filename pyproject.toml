@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "Openfeature provider for Flagsmith"
 authors = ["Matthew Elwell <matthew.elwell@flagsmith.com>"]
 readme = "README.md"
+packages = [{ include = "openfeature_flagsmith" }]
 
 [tool.poetry.dependencies]
 python = "^3.9"
