@@ -33,6 +33,7 @@ jobs:
       - release-build
     permissions:
       id-token: write
+    environment: release
 
     steps:
       - name: Retrieve release distributions
