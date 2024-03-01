@@ -26,7 +26,6 @@ class FlagsmithProvider(AbstractProvider):
         use_boolean_config_value: bool = False,
         return_value_for_disabled_flags: bool = False,
         use_flagsmith_defaults: bool = False,
-
     ):
         self._client = client
         self.return_value_for_disabled_flags = return_value_for_disabled_flags

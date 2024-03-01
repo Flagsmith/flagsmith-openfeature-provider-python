@@ -309,7 +309,9 @@ def test_identity_flags_are_used_if_targeting_key_provided(
     )
 
 
-def test_resolve_boolean_details_uses_enabled_when_use_boolean_config_value_is_false(mock_flagsmith_client: MagicMock) -> None:
+def test_resolve_boolean_details_uses_enabled_when_use_boolean_config_value_is_false(
+    mock_flagsmith_client: MagicMock,
+) -> None:
     # Given
     key = "key"
 
