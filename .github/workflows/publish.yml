@@ -18,6 +18,7 @@ jobs:
 
       - name: build release distributions
         run: |
+          pip install poetry
           poetry build -f sdist
 
       - name: upload windows dists
