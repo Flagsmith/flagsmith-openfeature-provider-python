@@ -1,4 +1,4 @@
-from openfeature.exception import ErrorCode, OpenFeatureError, GeneralError
+from openfeature.exception import ErrorCode, OpenFeatureError
 
 
 class FlagsmithProviderError(OpenFeatureError):
