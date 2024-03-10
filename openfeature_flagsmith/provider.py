@@ -54,7 +54,7 @@ class FlagsmithProvider(AbstractProvider):
     def resolve_integer_details(
         self,
         key: str,
-        default_value: Number,
+        default_value: int,
         evaluation_context: EvaluationContext = EvaluationContext(),
     ) -> FlagResolutionDetails[int]:
         return self._resolve(key, FlagType.INTEGER, default_value, evaluation_context)
@@ -62,7 +62,7 @@ class FlagsmithProvider(AbstractProvider):
     def resolve_float_details(
         self,
         key: str,
-        default_value: Number,
+        default_value: float,
         evaluation_context: EvaluationContext = EvaluationContext(),
     ) -> FlagResolutionDetails[float]:
         return self._resolve(key, FlagType.FLOAT, default_value, evaluation_context)
@@ -70,7 +70,7 @@ class FlagsmithProvider(AbstractProvider):
     def resolve_object_details(
         self,
         key: str,
-        default_value: dict,
+        default_value: typing.Union[dict, list],
         evaluation_context: EvaluationContext = EvaluationContext(),
     ) -> FlagResolutionDetails[typing.Union[dict, list]]:
         return self._resolve(key, FlagType.OBJECT, default_value, evaluation_context)
