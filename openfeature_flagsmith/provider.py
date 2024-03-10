@@ -6,10 +6,17 @@ from numbers import Number
 from flagsmith.exceptions import FlagsmithClientError
 from flagsmith.flagsmith import Flagsmith
 from openfeature.evaluation_context import EvaluationContext
-from openfeature.exception import ErrorCode
+from openfeature.exception import (
+    ErrorCode,
+    FlagNotFoundError,
+    ParseError,
+    TypeMismatchError,
+)
 from openfeature.flag_evaluation import FlagResolutionDetails, FlagType, Reason
 from openfeature.provider import Metadata
 from openfeature.provider.provider import AbstractProvider
+
+from openfeature_flagsmith.exceptions import FlagsmithProviderError
 
 _BASIC_FLAG_TYPE_MAPPINGS = {
     FlagType.BOOLEAN: bool,
@@ -84,28 +91,22 @@ class FlagsmithProvider(AbstractProvider):
     ) -> FlagResolutionDetails:
         try:
             flag = self._get_flags(evaluation_context).get_flag(key)
-        except FlagsmithClientError:
-            return FlagResolutionDetails(
-                value=default_value,
+        except FlagsmithClientError as e:
+            raise FlagsmithProviderError(
                 error_code=ErrorCode.GENERAL,
-                reason=Reason.ERROR,
-            )
+                error_message="An error occurred retrieving flags from Flagsmith client.",
+            ) from e
 
         if flag.is_default and not self.use_flagsmith_defaults:
-            return FlagResolutionDetails(
-                value=default_value,
-                error_code=ErrorCode.FLAG_NOT_FOUND,
-                reason=Reason.ERROR,
-            )
+            raise FlagNotFoundError(error_message="Flag '%s' was not found." % key)
 
         if flag_type == FlagType.BOOLEAN and not self.use_boolean_config_value:
             return FlagResolutionDetails(value=flag.enabled)
 
         if not (self.return_value_for_disabled_flags or flag.enabled):
-            return FlagResolutionDetails(
-                value=default_value,
+            raise FlagsmithProviderError(
                 error_code=ErrorCode.GENERAL,
-                reason=Reason.DISABLED,
+                error_message="Flag '%s' is not enabled." % key,
             )
 
         required_type = _BASIC_FLAG_TYPE_MAPPINGS.get(flag_type)
@@ -114,15 +115,13 @@ class FlagsmithProvider(AbstractProvider):
         elif flag_type is FlagType.OBJECT and isinstance(flag.value, str):
             try:
                 return FlagResolutionDetails(value=json.loads(flag.value))
-            except JSONDecodeError:
-                return FlagResolutionDetails(
-                    value=default_value,
-                    error_code=ErrorCode.PARSE_ERROR,
-                    reason=Reason.ERROR,
-                )
+            except JSONDecodeError as e:
+                msg = "Unable to parse object from value for flag '%s'" % key
+                raise ParseError(error_message=msg) from e
 
-        return FlagResolutionDetails(
-            value=default_value, error_code=ErrorCode.TYPE_MISMATCH, reason=Reason.ERROR
+        raise TypeMismatchError(
+            error_message="Value for flag '%s' is not of type '%s'"
+            % (key, flag_type.value)
         )
 
     def _get_flags(self, evaluation_context: EvaluationContext = EvaluationContext()):
