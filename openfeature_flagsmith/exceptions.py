@@ -4,6 +4,8 @@ from openfeature.exception import ErrorCode, OpenFeatureError
 class FlagsmithConfigurationError(OpenFeatureError):
     """
     This exception should be raised when the Flagsmith provider has not been set up correctly
+
+    TODO: this should inherit from ProviderFatalError when available in openfeature.
     """
 
     def __init__(self, error_message: str = None):
