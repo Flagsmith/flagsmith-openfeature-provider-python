@@ -34,7 +34,6 @@ jobs:
         run: |
           poetry run ruff format --check
           poetry run ruff check
-          poetry run isort --check .
 
       - name: Run Tests
         run: poetry run pytest
