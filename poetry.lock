@@ -199,20 +199,6 @@ files = [
 ]
 
 [[package]]
-name = "isort"
-version = "5.13.2"
-description = "A Python utility / library to sort Python imports."
-optional = false
-python-versions = ">=3.8.0"
-files = [
-    {file = "isort-5.13.2-py3-none-any.whl", hash = "sha256:8ca5e72a8d85860d5a3fa69b8745237f2939afe12dbf656afbcb47fe72d947a6"},
-    {file = "isort-5.13.2.tar.gz", hash = "sha256:48fdfcb9face5d58a4f6dde2e72a1fb8dcaf8ab26f95ab49fab84c2ddefb0109"},
-]
-
-[package.extras]
-colors = ["colorama (>=0.4.6)"]
-
-[[package]]
 name = "openfeature-sdk"
 version = "0.5.0"
 description = "Standardizing Feature Flagging for Everyone"
@@ -516,4 +502,4 @@ zstd = ["zstandard (>=0.18.0)"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.9"
-content-hash = "66df95c6f0fc42a9e7f89cb640a962f7ec83094d66e4183e6dc03ae0085cfa75"
+content-hash = "b10cf9b53a72a7620518e4f0dcca67cee2c0969f79b3501aa525a7e36113737d"
