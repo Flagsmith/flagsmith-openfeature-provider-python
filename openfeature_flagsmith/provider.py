@@ -5,8 +5,12 @@ from json import JSONDecodeError
 from flagsmith.exceptions import FlagsmithClientError
 from flagsmith.flagsmith import Flagsmith
 from openfeature.evaluation_context import EvaluationContext
-from openfeature.exception import (ErrorCode, FlagNotFoundError, ParseError,
-                                   TypeMismatchError)
+from openfeature.exception import (
+    ErrorCode,
+    FlagNotFoundError,
+    ParseError,
+    TypeMismatchError,
+)
 from openfeature.flag_evaluation import FlagResolutionDetails, FlagType
 from openfeature.provider import Metadata
 from openfeature.provider.provider import AbstractProvider
