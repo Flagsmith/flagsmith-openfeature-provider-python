@@ -5,9 +5,10 @@ from flagsmith import Flagsmith
 from flagsmith.exceptions import FlagsmithClientError
 from flagsmith.models import DefaultFlag, Flag, Flags
 from openfeature.evaluation_context import EvaluationContext
-from openfeature.exception import ErrorCode
+from openfeature.exception import ErrorCode, TypeMismatchError, ParseError, FlagNotFoundError
 from openfeature.flag_evaluation import Reason
 
+from openfeature_flagsmith.exceptions import FlagsmithProviderError
 from openfeature_flagsmith.provider import FlagsmithProvider
 
 
@@ -37,12 +38,12 @@ def test_resolve_boolean_details_when_type_mismatch(
     )
 
     # When
-    result = provider.resolve_boolean_details(key, default_value=default_value)
+    with pytest.raises(TypeMismatchError) as e:
+        provider.resolve_boolean_details(key, default_value=default_value)
 
     # Then
-    assert result.value is default_value
-    assert result.reason == Reason.ERROR
-    assert result.error_code == ErrorCode.TYPE_MISMATCH
+    assert e.value.error_code == ErrorCode.TYPE_MISMATCH
+    assert e.value.error_message == f"Value for flag '{key}' is not of type 'BOOLEAN'"
 
 
 def test_resolve_string_details_when_type_mismatch(
@@ -59,12 +60,12 @@ def test_resolve_string_details_when_type_mismatch(
     )
 
     # When
-    result = provider.resolve_string_details(key, default_value=default_value)
+    with pytest.raises(TypeMismatchError) as e:
+        provider.resolve_string_details(key, default_value=default_value)
 
     # Then
-    assert result.value is default_value
-    assert result.reason == Reason.ERROR
-    assert result.error_code == ErrorCode.TYPE_MISMATCH
+    assert e.value.error_code == ErrorCode.TYPE_MISMATCH
+    assert e.value.error_message == f"Value for flag '{key}' is not of type 'STRING'"
 
 
 def test_resolve_integer_details_when_type_mismatch(
@@ -81,12 +82,12 @@ def test_resolve_integer_details_when_type_mismatch(
     )
 
     # When
-    result = provider.resolve_integer_details(key, default_value=default_value)
+    with pytest.raises(TypeMismatchError) as e:
+        provider.resolve_integer_details(key, default_value=default_value)
 
     # Then
-    assert result.value is default_value
-    assert result.reason == Reason.ERROR
-    assert result.error_code == ErrorCode.TYPE_MISMATCH
+    assert e.value.error_code == ErrorCode.TYPE_MISMATCH
+    assert e.value.error_message == f"Value for flag '{key}' is not of type 'INTEGER'"
 
 
 def test_resolve_float_details_when_type_mismatch(
@@ -103,12 +104,12 @@ def test_resolve_float_details_when_type_mismatch(
     )
 
     # When
-    result = provider.resolve_float_details(key, default_value=default_value)
+    with pytest.raises(TypeMismatchError) as e:
+        provider.resolve_float_details(key, default_value=default_value)
 
     # Then
-    assert result.value is default_value
-    assert result.reason == Reason.ERROR
-    assert result.error_code == ErrorCode.TYPE_MISMATCH
+    assert e.value.error_code == ErrorCode.TYPE_MISMATCH
+    assert e.value.error_message == f"Value for flag '{key}' is not of type 'FLOAT'"
 
 
 def test_resolve_object_details_when_type_mismatch(
@@ -125,12 +126,12 @@ def test_resolve_object_details_when_type_mismatch(
     )
 
     # When
-    result = provider.resolve_object_details(key, default_value=default_value)
+    with pytest.raises(TypeMismatchError) as e:
+        provider.resolve_object_details(key, default_value=default_value)
 
     # Then
-    assert result.value is default_value
-    assert result.reason == Reason.ERROR
-    assert result.error_code == ErrorCode.TYPE_MISMATCH
+    assert e.value.error_code == ErrorCode.TYPE_MISMATCH
+    assert e.value.error_message == f"Value for flag '{key}' is not of type 'OBJECT'"
 
 
 def test_resolve_object_details_when_parse_error(
@@ -151,12 +152,12 @@ def test_resolve_object_details_when_parse_error(
     )
 
     # When
-    result = provider.resolve_object_details(key, default_value=default_value)
+    with pytest.raises(ParseError) as e:
+        provider.resolve_object_details(key, default_value=default_value)
 
     # Then
-    assert result.value is default_value
-    assert result.reason == Reason.ERROR
-    assert result.error_code == ErrorCode.PARSE_ERROR
+    assert e.value.error_code == ErrorCode.PARSE_ERROR
+    assert e.value.error_message == f"Unable to parse object from value for flag '{key}'"
 
 
 def test_resolve_string_details_when_not_enabled(
@@ -173,12 +174,12 @@ def test_resolve_string_details_when_not_enabled(
     )
 
     # When
-    result = provider.resolve_string_details(key, default_value=default_value)
+    with pytest.raises(FlagsmithProviderError) as e:
+        provider.resolve_string_details(key, default_value=default_value)
 
     # Then
-    assert result.value == default_value
-    assert result.reason == Reason.DISABLED
-    assert result.error_code == ErrorCode.GENERAL
+    assert e.value.error_code == ErrorCode.GENERAL
+    assert e.value.error_message == f"Flag '{key}' is not enabled."
 
 
 def test_resolve_string_details_when_not_enabled_and_return_value_for_disabled_flags(
@@ -220,12 +221,12 @@ def test_resolve_string_details_for_flagsmith_default_flag(
     )
 
     # When
-    result = provider.resolve_string_details(key, default_value=default_value)
+    with pytest.raises(FlagNotFoundError) as e:
+        provider.resolve_string_details(key, default_value=default_value)
 
     # Then
-    assert result.value == default_value
-    assert result.reason == Reason.ERROR
-    assert result.error_code == ErrorCode.FLAG_NOT_FOUND
+    assert e.value.error_code == ErrorCode.FLAG_NOT_FOUND
+    assert e.value.error_message == f"Flag '{key}' was not found."
 
 
 def test_resolve_string_details_for_flagsmith_default_flag_when_use_flagsmith_defaults(
@@ -265,12 +266,12 @@ def test_resolve_string_details_when_flagsmith_error(
     mock_flagsmith_client.get_environment_flags.side_effect = FlagsmithClientError("")
 
     # When
-    result = provider.resolve_string_details(key, default_value=default_value)
+    with pytest.raises(FlagsmithProviderError) as e:
+        provider.resolve_string_details(key, default_value=default_value)
 
     # Then
-    assert result.value == default_value
-    assert result.reason == Reason.ERROR
-    assert result.error_code == ErrorCode.GENERAL
+    assert e.value.error_code == ErrorCode.GENERAL
+    assert e.value.error_message == "An error occurred retrieving flags from Flagsmith client."
 
 
 def test_identity_flags_are_used_if_targeting_key_provided(
