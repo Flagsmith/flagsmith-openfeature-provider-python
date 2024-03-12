@@ -5,8 +5,12 @@ from flagsmith import Flagsmith
 from flagsmith.exceptions import FlagsmithClientError
 from flagsmith.models import DefaultFlag, Flag, Flags
 from openfeature.evaluation_context import EvaluationContext
-from openfeature.exception import ErrorCode, TypeMismatchError, ParseError, FlagNotFoundError
-from openfeature.flag_evaluation import Reason
+from openfeature.exception import (
+    ErrorCode,
+    TypeMismatchError,
+    ParseError,
+    FlagNotFoundError,
+)
 
 from openfeature_flagsmith.exceptions import FlagsmithProviderError
 from openfeature_flagsmith.provider import FlagsmithProvider
@@ -157,7 +161,9 @@ def test_resolve_object_details_when_parse_error(
 
     # Then
     assert e.value.error_code == ErrorCode.PARSE_ERROR
-    assert e.value.error_message == f"Unable to parse object from value for flag '{key}'"
+    assert (
+        e.value.error_message == f"Unable to parse object from value for flag '{key}'"
+    )
 
 
 def test_resolve_string_details_when_not_enabled(
@@ -271,7 +277,10 @@ def test_resolve_string_details_when_flagsmith_error(
 
     # Then
     assert e.value.error_code == ErrorCode.GENERAL
-    assert e.value.error_message == "An error occurred retrieving flags from Flagsmith client."
+    assert (
+        e.value.error_message
+        == "An error occurred retrieving flags from Flagsmith client."
+    )
 
 
 def test_identity_flags_are_used_if_targeting_key_provided(
