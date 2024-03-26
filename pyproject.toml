@@ -1,0 +1,25 @@
+[tool.poetry]
+name = "openfeature-provider-flagsmith"
+version = "0.1.0"
+description = "Openfeature provider for Flagsmith"
+authors = ["Matthew Elwell <matthew.elwell@flagsmith.com>"]
+readme = "README.md"
+packages = [{ include = "openfeature_flagsmith" }]
+
+[tool.poetry.dependencies]
+python = "^3.9"
+flagsmith = "^3.6.0"
+openfeature-sdk = "^0.6.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.0.2"
+ruff = "^0.2.2"
+pre-commit = "^3.6.2"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.ruff.lint.isort]
+known-first-party = ['openfeature_flagsmith']
+known-third-party = ['openfeature', 'flagsmith']
