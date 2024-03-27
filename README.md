@@ -39,7 +39,10 @@ provider = FlagsmithProvider(
     # By default, when evaluating the boolean value of a feature in the OpenFeature SDK, the Flagsmith 
     # OpenFeature Provider will use the 'Enabled' state of the feature as defined in Flagsmith. This 
     # behaviour can be changed to use the 'value' field defined in the Flagsmith feature instead by 
-    # enabling the use_boolean_config_value setting.
+    # enabling the use_boolean_config_value setting. 
+    # Note: this relies on the value being defined as a Boolean in Flagsmith. If the value is not a 
+    # Boolean, an error will occur and the default value provided as part of the evaluation will be 
+    # returned instead.  
     # Required: False
     # Default: False
     use_boolean_config_value=False,
