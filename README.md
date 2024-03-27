@@ -28,16 +28,18 @@ provider = FlagsmithProvider(
     client=Flagsmith(...),
     
     # By enabling the use_flagsmith_defaults setting, you can instruct the OpenFeature SDK to use
-    # the default logic included in the Flagsmith client. This will override the default provided
-    # at evaluation time in the OpenFeature SDK in most cases (excluding those where an unexpected
-    # exception happens in the Flagsmith client itself).
+    # the default logic included in the Flagsmith client as per the docs here: 
+    # https://docs.flagsmith.com/clients/server-side#managing-default-flags. This will override the 
+    # default provided at evaluation time in the OpenFeature SDK in most cases (excluding those where 
+    # an unexpected exception happens in the Flagsmith client itself).
     # Required: False
     # Default: False
     use_flagsmith_defaults=False,
     
-    # By default, when evaluating the boolean value of a feature, the Flagsmith OpenFeature Provider
-    # will use the 'Enabled' state of the flag. This behaviour can be changed to use the value
-    # defined in the Flagsmith feature instead by enabling the use_boolean_config_value setting.
+    # By default, when evaluating the boolean value of a feature in the OpenFeature SDK, the Flagsmith 
+    # OpenFeature Provider will use the 'Enabled' state of the feature as defined in Flagsmith. This 
+    # behaviour can be changed to use the 'value' field defined in the Flagsmith feature instead by 
+    # enabling the use_boolean_config_value setting.
     # Required: False
     # Default: False
     use_boolean_config_value=False,
