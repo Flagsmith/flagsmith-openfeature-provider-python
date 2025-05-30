@@ -25,42 +25,42 @@
         },
         {
             "type": "docs",
-            "hidden": true,
+            "hidden": false,
             "section": "Docs"
         },
         {
             "type": "chore",
-            "hidden": true,
+            "hidden": false,
             "section": "Other"
         },
         {
             "type": "build",
-            "hidden": true,
+            "hidden": false,
             "section": "Build"
         },
         {
             "type": "deps",
-            "hidden": true,
+            "hidden": false,
             "section": "Dependency Updates"
         },
         {
             "type": "ci",
-            "hidden": true,
+            "hidden": false,
             "section": "CI"
         },
         {
             "type": "refactor",
-            "hidden": true,
+            "hidden": false,
             "section": "Refactoring"
         },
         {
             "type": "style",
-            "hidden": true,
+            "hidden": false,
             "section": "Code Style"
         },
         {
             "type": "test",
-            "hidden": true,
+            "hidden": false,
             "section": "Tests"
         }
     ]
