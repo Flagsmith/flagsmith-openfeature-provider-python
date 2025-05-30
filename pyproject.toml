@@ -1,15 +1,20 @@
-[tool.poetry]
+[project]
 name = "openfeature-provider-flagsmith"
-version = "0.1.0"
+version = "0.1.1"
 description = "Openfeature provider for Flagsmith"
-authors = ["Matthew Elwell <matthew.elwell@flagsmith.com>"]
+authors = [
+    { name = "Matthew Elwell", email = "matthew.elwell@flagsmith.com>" }
+]
 readme = "README.md"
 packages = [{ include = "openfeature_flagsmith" }]
+requires-python = ">=3.9,<4.0"
+dependencies = [
+    "flagsmith (>=3.6.0,<4.0.0)",
+    "openfeature-sdk (>=0.6.0,<1.0.0)",
+]
 
-[tool.poetry.dependencies]
-python = "^3.9"
-flagsmith = "^3.6.0"
-openfeature-sdk = "^0.6.0"
+[tool.poetry]
+requires-poetry = ">=2.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.0.2"
