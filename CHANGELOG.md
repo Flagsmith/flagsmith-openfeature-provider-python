@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.3](https://github.com/Flagsmith/flagsmith-openfeature-provider-python/compare/v0.1.2...v0.1.3) (2025-06-02)
+
+
+### Bug Fixes
+
+* update provider method signatures to conform to specification ([#13](https://github.com/Flagsmith/flagsmith-openfeature-provider-python/issues/13)) ([385f27e](https://github.com/Flagsmith/flagsmith-openfeature-provider-python/commit/385f27e2cc683b27c9033f28120d8607403ad73d))
+
 ## [0.1.2](https://github.com/Flagsmith/flagsmith-openfeature-provider-python/compare/v0.1.1...v0.1.2) (2025-06-02)
 
 
