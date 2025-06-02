@@ -6,7 +6,6 @@ authors = [
     { name = "Matthew Elwell", email = "matthew.elwell@flagsmith.com>" }
 ]
 readme = "README.md"
-packages = [{ include = "openfeature_flagsmith" }]
 requires-python = ">=3.9,<4.0"
 dependencies = [
     "flagsmith (>=3.6.0,<4.0.0)",
@@ -15,6 +14,7 @@ dependencies = [
 
 [tool.poetry]
 requires-poetry = ">=2.0"
+packages = [{ include = "openfeature_flagsmith" }]
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.0.2"
