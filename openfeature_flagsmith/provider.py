@@ -43,11 +43,11 @@ class FlagsmithProvider(AbstractProvider):
 
     def resolve_boolean_details(
         self,
-        key: str,
+        flag_key: str,
         default_value: bool,
-        evaluation_context: EvaluationContext = EvaluationContext(),
+        context: EvaluationContext = EvaluationContext(),
     ) -> FlagResolutionDetails[bool]:
-        return self._resolve(key, FlagType.BOOLEAN, default_value, evaluation_context)
+        return self._resolve(flag_key, FlagType.BOOLEAN, default_value, context)
 
     def resolve_string_details(
         self,
@@ -97,7 +97,7 @@ class FlagsmithProvider(AbstractProvider):
             ) from e
 
         if flag.is_default and not self.use_flagsmith_defaults:
-            raise FlagNotFoundError(error_message="Flag '%s' was not found." % key)
+            raise FlagNotFoundError(error_message="Flag '%s' was not found." % flag_key)
 
         if flag_type == FlagType.BOOLEAN and not self.use_boolean_config_value:
             return FlagResolutionDetails(value=flag.enabled)
@@ -105,7 +105,7 @@ class FlagsmithProvider(AbstractProvider):
         if not (self.return_value_for_disabled_flags or flag.enabled):
             raise FlagsmithProviderError(
                 error_code=ErrorCode.GENERAL,
-                error_message="Flag '%s' is not enabled." % key,
+                error_message="Flag '%s' is not enabled." % flag_key,
             )
 
         required_type = _BASIC_FLAG_TYPE_MAPPINGS.get(flag_type)
@@ -115,7 +115,7 @@ class FlagsmithProvider(AbstractProvider):
             try:
                 return FlagResolutionDetails(value=json.loads(flag.value))
             except JSONDecodeError as e:
-                msg = "Unable to parse object from value for flag '%s'" % key
+                msg = "Unable to parse object from value for flag '%s'" % flag_key
                 raise ParseError(error_message=msg) from e
 
         raise TypeMismatchError(
