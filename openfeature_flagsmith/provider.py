@@ -43,53 +43,53 @@ class FlagsmithProvider(AbstractProvider):
 
     def resolve_boolean_details(
         self,
-        key: str,
+        flag_key: str,
         default_value: bool,
-        evaluation_context: EvaluationContext = EvaluationContext(),
+        context: EvaluationContext = EvaluationContext(),
     ) -> FlagResolutionDetails[bool]:
-        return self._resolve(key, FlagType.BOOLEAN, default_value, evaluation_context)
+        return self._resolve(flag_key, FlagType.BOOLEAN, default_value, context)
 
     def resolve_string_details(
         self,
-        key: str,
+        flag_key: str,
         default_value: str,
-        evaluation_context: EvaluationContext = EvaluationContext(),
+        context: EvaluationContext = EvaluationContext(),
     ) -> FlagResolutionDetails[str]:
-        return self._resolve(key, FlagType.STRING, default_value, evaluation_context)
+        return self._resolve(flag_key, FlagType.STRING, default_value, context)
 
     def resolve_integer_details(
         self,
-        key: str,
+        flag_key: str,
         default_value: int,
-        evaluation_context: EvaluationContext = EvaluationContext(),
+        context: EvaluationContext = EvaluationContext(),
     ) -> FlagResolutionDetails[int]:
-        return self._resolve(key, FlagType.INTEGER, default_value, evaluation_context)
+        return self._resolve(flag_key, FlagType.INTEGER, default_value, context)
 
     def resolve_float_details(
         self,
-        key: str,
+        flag_key: str,
         default_value: float,
-        evaluation_context: EvaluationContext = EvaluationContext(),
+        context: EvaluationContext = EvaluationContext(),
     ) -> FlagResolutionDetails[float]:
-        return self._resolve(key, FlagType.FLOAT, default_value, evaluation_context)
+        return self._resolve(flag_key, FlagType.FLOAT, default_value, context)
 
     def resolve_object_details(
         self,
-        key: str,
+        flag_key: str,
         default_value: typing.Union[dict, list],
-        evaluation_context: EvaluationContext = EvaluationContext(),
+        context: EvaluationContext = EvaluationContext(),
     ) -> FlagResolutionDetails[typing.Union[dict, list]]:
-        return self._resolve(key, FlagType.OBJECT, default_value, evaluation_context)
+        return self._resolve(flag_key, FlagType.OBJECT, default_value, context)
 
     def _resolve(
         self,
-        key: str,
+        flag_key: str,
         flag_type: FlagType,
         default_value: typing.Any,
-        evaluation_context: EvaluationContext,
+        context: EvaluationContext,
     ) -> FlagResolutionDetails:
         try:
-            flag = self._get_flags(evaluation_context).get_flag(key)
+            flag = self._get_flags(context).get_flag(flag_key)
         except FlagsmithClientError as e:
             raise FlagsmithProviderError(
                 error_code=ErrorCode.GENERAL,
@@ -97,7 +97,7 @@ class FlagsmithProvider(AbstractProvider):
             ) from e
 
         if flag.is_default and not self.use_flagsmith_defaults:
-            raise FlagNotFoundError(error_message="Flag '%s' was not found." % key)
+            raise FlagNotFoundError(error_message="Flag '%s' was not found." % flag_key)
 
         if flag_type == FlagType.BOOLEAN and not self.use_boolean_config_value:
             return FlagResolutionDetails(value=flag.enabled)
@@ -105,7 +105,7 @@ class FlagsmithProvider(AbstractProvider):
         if not (self.return_value_for_disabled_flags or flag.enabled):
             raise FlagsmithProviderError(
                 error_code=ErrorCode.GENERAL,
-                error_message="Flag '%s' is not enabled." % key,
+                error_message="Flag '%s' is not enabled." % flag_key,
             )
 
         required_type = _BASIC_FLAG_TYPE_MAPPINGS.get(flag_type)
@@ -115,18 +115,18 @@ class FlagsmithProvider(AbstractProvider):
             try:
                 return FlagResolutionDetails(value=json.loads(flag.value))
             except JSONDecodeError as e:
-                msg = "Unable to parse object from value for flag '%s'" % key
+                msg = "Unable to parse object from value for flag '%s'" % flag_key
                 raise ParseError(error_message=msg) from e
 
         raise TypeMismatchError(
             error_message="Value for flag '%s' is not of type '%s'"
-            % (key, flag_type.value)
+            % (flag_key, flag_type.value)
         )
 
-    def _get_flags(self, evaluation_context: EvaluationContext = EvaluationContext()):
-        if targeting_key := evaluation_context.targeting_key:
+    def _get_flags(self, context: EvaluationContext = EvaluationContext()):
+        if targeting_key := context.targeting_key:
             return self._client.get_identity_flags(
                 identifier=targeting_key,
-                traits=evaluation_context.attributes.get("traits", {}),
+                traits=context.attributes.get("traits", {}),
             )
         return self._client.get_environment_flags()

@@ -302,9 +302,9 @@ def test_identity_flags_are_used_if_targeting_key_provided(
 
     # When
     result = provider.resolve_string_details(
-        key=key,
+        flag_key=key,
         default_value=default_value,
-        evaluation_context=EvaluationContext(
+        context=EvaluationContext(
             targeting_key=targeting_key, attributes={"traits": traits}
         ),
     )
@@ -332,7 +332,7 @@ def test_resolve_boolean_details_uses_enabled_when_use_boolean_config_value_is_f
     )
 
     # When
-    result = provider.resolve_boolean_details(key=key, default_value=False)
+    result = provider.resolve_boolean_details(flag_key=key, default_value=False)
 
     # Then
     assert result.value is True
