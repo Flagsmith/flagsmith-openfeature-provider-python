@@ -47,7 +47,9 @@ class FlagsmithProvider(AbstractProvider):
         default_value: bool,
         evaluation_context: EvaluationContext = EvaluationContext(),
     ) -> FlagResolutionDetails[bool]:
-        return self._resolve(flag_key, FlagType.BOOLEAN, default_value, evaluation_context)
+        return self._resolve(
+            flag_key, FlagType.BOOLEAN, default_value, evaluation_context
+        )
 
     def resolve_string_details(
         self,
@@ -55,7 +57,9 @@ class FlagsmithProvider(AbstractProvider):
         default_value: str,
         evaluation_context: EvaluationContext = EvaluationContext(),
     ) -> FlagResolutionDetails[str]:
-        return self._resolve(flag_key, FlagType.STRING, default_value, evaluation_context)
+        return self._resolve(
+            flag_key, FlagType.STRING, default_value, evaluation_context
+        )
 
     def resolve_integer_details(
         self,
@@ -63,7 +67,9 @@ class FlagsmithProvider(AbstractProvider):
         default_value: int,
         evaluation_context: EvaluationContext = EvaluationContext(),
     ) -> FlagResolutionDetails[int]:
-        return self._resolve(flag_key, FlagType.INTEGER, default_value, evaluation_context)
+        return self._resolve(
+            flag_key, FlagType.INTEGER, default_value, evaluation_context
+        )
 
     def resolve_float_details(
         self,
@@ -71,7 +77,9 @@ class FlagsmithProvider(AbstractProvider):
         default_value: float,
         evaluation_context: EvaluationContext = EvaluationContext(),
     ) -> FlagResolutionDetails[float]:
-        return self._resolve(flag_key, FlagType.FLOAT, default_value, evaluation_context)
+        return self._resolve(
+            flag_key, FlagType.FLOAT, default_value, evaluation_context
+        )
 
     def resolve_object_details(
         self,
@@ -79,7 +87,9 @@ class FlagsmithProvider(AbstractProvider):
         default_value: typing.Union[dict, list],
         evaluation_context: EvaluationContext = EvaluationContext(),
     ) -> FlagResolutionDetails[typing.Union[dict, list]]:
-        return self._resolve(flag_key, FlagType.OBJECT, default_value, evaluation_context)
+        return self._resolve(
+            flag_key, FlagType.OBJECT, default_value, evaluation_context
+        )
 
     def _resolve(
         self,
