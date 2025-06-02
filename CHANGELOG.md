@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.4](https://github.com/Flagsmith/flagsmith-openfeature-provider-python/compare/v0.1.3...v0.1.4) (2025-06-02)
+
+
+### Bug Fixes
+
+* revert evaluation context change ([#15](https://github.com/Flagsmith/flagsmith-openfeature-provider-python/issues/15)) ([5c96fb8](https://github.com/Flagsmith/flagsmith-openfeature-provider-python/commit/5c96fb8d3dd25d1997e008e1d2fdb9b398dd0590))
+
 ## [0.1.3](https://github.com/Flagsmith/flagsmith-openfeature-provider-python/compare/v0.1.2...v0.1.3) (2025-06-02)
 
 
