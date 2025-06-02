@@ -45,51 +45,51 @@ class FlagsmithProvider(AbstractProvider):
         self,
         flag_key: str,
         default_value: bool,
-        context: EvaluationContext = EvaluationContext(),
+        evaluation_context: EvaluationContext = EvaluationContext(),
     ) -> FlagResolutionDetails[bool]:
-        return self._resolve(flag_key, FlagType.BOOLEAN, default_value, context)
+        return self._resolve(flag_key, FlagType.BOOLEAN, default_value, evaluation_context)
 
     def resolve_string_details(
         self,
         flag_key: str,
         default_value: str,
-        context: EvaluationContext = EvaluationContext(),
+        evaluation_context: EvaluationContext = EvaluationContext(),
     ) -> FlagResolutionDetails[str]:
-        return self._resolve(flag_key, FlagType.STRING, default_value, context)
+        return self._resolve(flag_key, FlagType.STRING, default_value, evaluation_context)
 
     def resolve_integer_details(
         self,
         flag_key: str,
         default_value: int,
-        context: EvaluationContext = EvaluationContext(),
+        evaluation_context: EvaluationContext = EvaluationContext(),
     ) -> FlagResolutionDetails[int]:
-        return self._resolve(flag_key, FlagType.INTEGER, default_value, context)
+        return self._resolve(flag_key, FlagType.INTEGER, default_value, evaluation_context)
 
     def resolve_float_details(
         self,
         flag_key: str,
         default_value: float,
-        context: EvaluationContext = EvaluationContext(),
+        evaluation_context: EvaluationContext = EvaluationContext(),
     ) -> FlagResolutionDetails[float]:
-        return self._resolve(flag_key, FlagType.FLOAT, default_value, context)
+        return self._resolve(flag_key, FlagType.FLOAT, default_value, evaluation_context)
 
     def resolve_object_details(
         self,
         flag_key: str,
         default_value: typing.Union[dict, list],
-        context: EvaluationContext = EvaluationContext(),
+        evaluation_context: EvaluationContext = EvaluationContext(),
     ) -> FlagResolutionDetails[typing.Union[dict, list]]:
-        return self._resolve(flag_key, FlagType.OBJECT, default_value, context)
+        return self._resolve(flag_key, FlagType.OBJECT, default_value, evaluation_context)
 
     def _resolve(
         self,
         flag_key: str,
         flag_type: FlagType,
         default_value: typing.Any,
-        context: EvaluationContext,
+        evaluation_context: EvaluationContext,
     ) -> FlagResolutionDetails:
         try:
-            flag = self._get_flags(context).get_flag(flag_key)
+            flag = self._get_flags(evaluation_context).get_flag(flag_key)
         except FlagsmithClientError as e:
             raise FlagsmithProviderError(
                 error_code=ErrorCode.GENERAL,
@@ -123,10 +123,10 @@ class FlagsmithProvider(AbstractProvider):
             % (flag_key, flag_type.value)
         )
 
-    def _get_flags(self, context: EvaluationContext = EvaluationContext()):
-        if targeting_key := context.targeting_key:
+    def _get_flags(self, evaluation_context: EvaluationContext = EvaluationContext()):
+        if targeting_key := evaluation_context.targeting_key:
             return self._client.get_identity_flags(
                 identifier=targeting_key,
-                traits=context.attributes.get("traits", {}),
+                traits=evaluation_context.attributes.get("traits", {}),
             )
         return self._client.get_environment_flags()
