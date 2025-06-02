@@ -304,7 +304,7 @@ def test_identity_flags_are_used_if_targeting_key_provided(
     result = provider.resolve_string_details(
         flag_key=key,
         default_value=default_value,
-        context=EvaluationContext(
+        evaluation_context=EvaluationContext(
             targeting_key=targeting_key, attributes={"traits": traits}
         ),
     )
