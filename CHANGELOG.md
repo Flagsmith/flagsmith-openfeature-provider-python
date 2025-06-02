@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.2](https://github.com/Flagsmith/flagsmith-openfeature-provider-python/compare/v0.1.1...v0.1.2) (2025-06-02)
+
+
+### CI
+
+* fix pyproject.toml build information ([#9](https://github.com/Flagsmith/flagsmith-openfeature-provider-python/issues/9)) ([e9f633c](https://github.com/Flagsmith/flagsmith-openfeature-provider-python/commit/e9f633c66ac74bf2152b780c85bd58049116e566))
+
 ## [0.1.1](https://github.com/Flagsmith/flagsmith-openfeature-provider-python/compare/v0.1.0...v0.1.1) (2025-05-30)
 
 
