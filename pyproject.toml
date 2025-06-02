@@ -1,6 +1,5 @@
 [project]
 name = "openfeature-provider-flagsmith"
-version = "0.1.0"
 description = "Openfeature provider for Flagsmith"
 authors = [
     { name = "Matthew Elwell", email = "matthew.elwell@flagsmith.com>" }
@@ -15,6 +14,7 @@ dependencies = [
 [tool.poetry]
 requires-poetry = ">=2.0"
 packages = [{ include = "openfeature_flagsmith" }]
+version = "0.1.1"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.0.2"
