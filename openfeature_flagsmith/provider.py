@@ -12,8 +12,7 @@ from openfeature.exception import (
     TypeMismatchError,
 )
 from openfeature.flag_evaluation import FlagResolutionDetails, FlagType
-from openfeature.provider import Metadata
-from openfeature.provider.provider import AbstractProvider
+from openfeature.provider import Metadata, AbstractProvider
 
 from openfeature_flagsmith.exceptions import FlagsmithProviderError
 
