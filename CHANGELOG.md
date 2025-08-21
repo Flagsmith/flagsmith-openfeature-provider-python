@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.5](https://github.com/Flagsmith/flagsmith-openfeature-provider-python/compare/v0.1.4...v0.1.5) (2025-08-21)
+
+
+### CI
+
+* add-conventional-commit-check-action ([#19](https://github.com/Flagsmith/flagsmith-openfeature-provider-python/issues/19)) ([f749c5b](https://github.com/Flagsmith/flagsmith-openfeature-provider-python/commit/f749c5ba1e269be2940cb6e63a2cc6ece0073a33))
+
 ## [0.1.4](https://github.com/Flagsmith/flagsmith-openfeature-provider-python/compare/v0.1.3...v0.1.4) (2025-06-02)
 
 
