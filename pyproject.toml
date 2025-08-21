@@ -1,6 +1,6 @@
 [project]
 name = "openfeature-provider-flagsmith"
-version = "0.1.4"
+version = "0.1.5"
 description = "Openfeature provider for Flagsmith"
 authors = [
     { name = "Matthew Elwell", email = "matthew.elwell@flagsmith.com>" }
