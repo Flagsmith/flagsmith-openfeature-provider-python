@@ -134,8 +134,15 @@ class FlagsmithProvider(AbstractProvider):
 
     def _get_flags(self, evaluation_context: EvaluationContext = EvaluationContext()):
         if targeting_key := evaluation_context.targeting_key:
+            traits = {}
+            for key, value in evaluation_context.attributes.items():
+                if key == "traits":
+                    continue
+                else:
+                    traits[key] = value
+            traits.update(evaluation_context.attributes.get("traits", {}))
             return self._client.get_identity_flags(
                 identifier=targeting_key,
-                traits=evaluation_context.attributes.get("traits", {}),
+                traits=traits,
             )
         return self._client.get_environment_flags()

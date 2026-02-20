@@ -319,6 +319,112 @@ def test_identity_flags_are_used_if_targeting_key_provided(
     )
 
 
+def test_identity_flags_are_used_with_flat_attributes(
+    mock_flagsmith_client: MagicMock,
+) -> None:
+    # Given
+    key = "key"
+    targeting_key = "targeting_key"
+    traits = {"foo": "bar", "age": 25}
+    value = "foo"
+    default_value = "default"
+
+    provider = FlagsmithProvider(mock_flagsmith_client)
+
+    mock_flagsmith_client.get_environment_flags.side_effect = NotImplementedError()
+    mock_flagsmith_client.get_identity_flags.return_value = Flags(
+        {key: Flag(feature_id=1, feature_name=key, enabled=True, value=value)}
+    )
+
+    # When
+    result = provider.resolve_string_details(
+        flag_key=key,
+        default_value=default_value,
+        evaluation_context=EvaluationContext(
+            targeting_key=targeting_key, attributes=traits
+        ),
+    )
+
+    # Then
+    assert result.value == value
+    assert result.error_code is None
+    assert result.reason is None
+
+    mock_flagsmith_client.get_identity_flags.assert_called_once_with(
+        identifier=targeting_key, traits=traits
+    )
+
+
+def test_identity_flags_flat_attributes_and_nested_traits_are_merged(
+    mock_flagsmith_client: MagicMock,
+) -> None:
+    # Given
+    key = "key"
+    targeting_key = "targeting_key"
+    value = "foo"
+    default_value = "default"
+
+    provider = FlagsmithProvider(mock_flagsmith_client)
+
+    mock_flagsmith_client.get_environment_flags.side_effect = NotImplementedError()
+    mock_flagsmith_client.get_identity_flags.return_value = Flags(
+        {key: Flag(feature_id=1, feature_name=key, enabled=True, value=value)}
+    )
+
+    # When
+    result = provider.resolve_string_details(
+        flag_key=key,
+        default_value=default_value,
+        evaluation_context=EvaluationContext(
+            targeting_key=targeting_key,
+            attributes={"flat_trait": "flat_value", "traits": {"nested_trait": "nested_value"}},
+        ),
+    )
+
+    # Then
+    assert result.value == value
+    assert result.error_code is None
+    assert result.reason is None
+
+    mock_flagsmith_client.get_identity_flags.assert_called_once_with(
+        identifier=targeting_key,
+        traits={"flat_trait": "flat_value", "nested_trait": "nested_value"},
+    )
+
+
+def test_identity_flags_nested_traits_take_precedence_over_flat_attributes(
+    mock_flagsmith_client: MagicMock,
+) -> None:
+    # Given
+    key = "key"
+    targeting_key = "targeting_key"
+    value = "foo"
+    default_value = "default"
+
+    provider = FlagsmithProvider(mock_flagsmith_client)
+
+    mock_flagsmith_client.get_environment_flags.side_effect = NotImplementedError()
+    mock_flagsmith_client.get_identity_flags.return_value = Flags(
+        {key: Flag(feature_id=1, feature_name=key, enabled=True, value=value)}
+    )
+
+    # When
+    provider.resolve_string_details(
+        flag_key=key,
+        default_value=default_value,
+        evaluation_context=EvaluationContext(
+            targeting_key=targeting_key,
+            attributes={"shared_key": "flat_value", "traits": {"shared_key": "nested_value"}},
+        ),
+    )
+
+    # Then
+    mock_flagsmith_client.get_identity_flags.assert_called_once_with(
+        identifier=targeting_key,
+        traits={"shared_key": "nested_value"},
+    )
+
+
 def test_resolve_boolean_details_uses_enabled_when_use_boolean_config_value_is_false(
     mock_flagsmith_client: MagicMock,
 ) -> None:
