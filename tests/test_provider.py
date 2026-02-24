@@ -377,7 +377,10 @@ def test_identity_flags_flat_attributes_and_nested_traits_are_merged(
         default_value=default_value,
         evaluation_context=EvaluationContext(
             targeting_key=targeting_key,
-            attributes={"flat_trait": "flat_value", "traits": {"nested_trait": "nested_value"}},
+            attributes={
+                "flat_trait": "flat_value",
+                "traits": {"nested_trait": "nested_value"},
+            },
         ),
     )
 
@@ -414,7 +417,10 @@ def test_identity_flags_nested_traits_take_precedence_over_flat_attributes(
         default_value=default_value,
         evaluation_context=EvaluationContext(
             targeting_key=targeting_key,
-            attributes={"shared_key": "flat_value", "traits": {"shared_key": "nested_value"}},
+            attributes={
+                "shared_key": "flat_value",
+                "traits": {"shared_key": "nested_value"},
+            },
         ),
     )
 
