@@ -57,6 +57,26 @@ provider = FlagsmithProvider(
 )
 ```
 
-The provider can then be used with the OpenFeature client as per 
+The provider can then be used with the OpenFeature client as per
 [the documentation](https://openfeature.dev/docs/reference/concepts/evaluation-api#setting-a-provider).
+
+### Evaluation Context
+
+The evaluation context supports traits in two ways:
+1. Flat top-level attributes
+2. A nested traits object
+
+The two forms are merged and sent to Flagsmith, with the traits object taking precedence if keys conflict.
+
+```python
+context = EvaluationContext( # Traits are: {"abc":"def", "foo": "bar2"}
+    targeting_key="user",
+    attributes={
+        "foo": "bar", 
+        "abc": "def", 
+        "traits": {"foo": "bar2"}
+    },
+)
+
+```
 
