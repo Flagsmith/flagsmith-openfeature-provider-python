@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.1.6](https://github.com/Flagsmith/flagsmith-openfeature-provider-python/compare/v0.1.5...v0.1.6) (2026-03-24)
+
+
+### Bug Fixes
+
+* Support flat attributes in the evaluation context ([#26](https://github.com/Flagsmith/flagsmith-openfeature-provider-python/issues/26)) ([b76a829](https://github.com/Flagsmith/flagsmith-openfeature-provider-python/commit/b76a82981d5b14ff3403f2213bdd7a18fe72eeaa))
+* Support latest Flagsmith SDKs ([#28](https://github.com/Flagsmith/flagsmith-openfeature-provider-python/issues/28)) ([3396c7c](https://github.com/Flagsmith/flagsmith-openfeature-provider-python/commit/3396c7c5929b705d7814c2af5e03be3fdd5f2d16))
+
+
+### Other
+
+* add root CODEOWNERS ([#22](https://github.com/Flagsmith/flagsmith-openfeature-provider-python/issues/22)) ([e7be6fe](https://github.com/Flagsmith/flagsmith-openfeature-provider-python/commit/e7be6feea978110ddc3fffe61cd80882552e5c56))
+* Remove amannn/action-semantic-pull-request workflow ([#25](https://github.com/Flagsmith/flagsmith-openfeature-provider-python/issues/25)) ([47147ec](https://github.com/Flagsmith/flagsmith-openfeature-provider-python/commit/47147ecc59d1a5bf902f145cc4e9d4d9080ca38b))
+
 ## [0.1.5](https://github.com/Flagsmith/flagsmith-openfeature-provider-python/compare/v0.1.4...v0.1.5) (2025-08-21)
 
 
