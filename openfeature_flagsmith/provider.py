@@ -12,7 +12,8 @@ from openfeature.exception import (
     TypeMismatchError,
 )
 from openfeature.flag_evaluation import FlagResolutionDetails, FlagType
-from openfeature.provider import Metadata, AbstractProvider
+from openfeature.provider import AbstractProvider, Metadata
+from openfeature.track import TrackingEventDetails
 
 from openfeature_flagsmith.exceptions import FlagsmithProviderError
 
@@ -36,6 +37,38 @@ class FlagsmithProvider(AbstractProvider):
         self.return_value_for_disabled_flags = return_value_for_disabled_flags
         self.use_flagsmith_defaults = use_flagsmith_defaults
         self.use_boolean_config_value = use_boolean_config_value
+
+    def track(
+        self,
+        tracking_event_name: str,
+        evaluation_context: typing.Optional[EvaluationContext] = None,
+        tracking_event_details: typing.Optional[TrackingEventDetails] = None,
+    ) -> None:
+        # Guard against older flagsmith versions or duck-typed clients
+        # that don't have track_event.
+        if not hasattr(self._client, "track_event"):
+            return
+
+        identity = evaluation_context.targeting_key if evaluation_context else None
+        traits = self._extract_traits(evaluation_context)
+
+        metadata: typing.Optional[typing.Dict[str, typing.Any]] = None
+        if tracking_event_details is not None:
+            metadata = dict(tracking_event_details.attributes)
+            if tracking_event_details.value is not None:
+                metadata["value"] = tracking_event_details.value
+            if not metadata:
+                metadata = None
+
+        try:
+            self._client.track_event(
+                tracking_event_name,
+                identity_identifier=identity,
+                traits=traits,
+                metadata=metadata,
+            )
+        except ValueError:
+            return
 
     def get_metadata(self) -> Metadata:
         return Metadata(name="FlagsmithProvider")
@@ -131,6 +164,17 @@ class FlagsmithProvider(AbstractProvider):
             error_message="Value for flag '%s' is not of type '%s'"
             % (flag_key, flag_type.value)
         )
+
+    @staticmethod
+    def _extract_traits(
+        evaluation_context: typing.Optional[EvaluationContext],
+    ) -> typing.Optional[typing.Dict[str, typing.Any]]:
+        if not evaluation_context or not evaluation_context.attributes:
+            return None
+        nested = evaluation_context.attributes.get("traits", {})
+        flat = {k: v for k, v in evaluation_context.attributes.items() if k != "traits"}
+        merged = {**flat, **nested}
+        return merged or None
 
     def _get_flags(self, evaluation_context: EvaluationContext = EvaluationContext()):
         if targeting_key := evaluation_context.targeting_key:

@@ -60,6 +60,55 @@ provider = FlagsmithProvider(
 The provider can then be used with the OpenFeature client as per
 [the documentation](https://openfeature.dev/docs/reference/concepts/evaluation-api#setting-a-provider).
 
+### Tracking
+
+The provider supports the [OpenFeature tracking API](https://openfeature.dev/specification/sections/tracking/), which lets you associate user actions with feature flag evaluations for experimentation.
+
+Tracking requires pipeline analytics to be enabled on the **Flagsmith client** (available from `flagsmith` version 5.2.0). The provider acts as a thin delegate — all buffering and flushing is managed by the client.
+
+```python
+from flagsmith import Flagsmith, PipelineAnalyticsConfig
+from openfeature import api
+from openfeature.evaluation_context import EvaluationContext
+from openfeature.track import TrackingEventDetails
+from openfeature_flagsmith.provider import FlagsmithProvider
+
+# Enable pipeline analytics on the Flagsmith client
+client = Flagsmith(
+    environment_key="your-environment-key",
+    pipeline_analytics_config=PipelineAnalyticsConfig(
+        analytics_server_url="https://analytics-collector.flagsmith.com/",
+        max_buffer=1000,            # optional, default 1000
+        flush_interval_seconds=10,  # optional, default 10s
+    ),
+)
+
+api.set_provider(FlagsmithProvider(client=client))
+of_client = api.get_client()
+
+# Flag evaluations are tracked automatically — no extra code needed
+variant = of_client.get_string_value(
+    "checkout-variant",
+    "control",
+    evaluation_context=EvaluationContext(targeting_key="user-123"),
+)
+
+# Track a custom event explicitly
+of_client.track(
+    "purchase",
+    evaluation_context=EvaluationContext(
+        targeting_key="user-123",
+        attributes={"plan": "premium"},
+    ),
+    tracking_event_details=TrackingEventDetails(
+        value=99.77,
+        attributes={"currency": "USD"},
+    ),
+)
+```
+
+If `pipeline_analytics_config` is not set on the Flagsmith client, calls to `track()` are silently ignored.
+
 ### Evaluation Context
 
 The evaluation context supports traits in two ways:

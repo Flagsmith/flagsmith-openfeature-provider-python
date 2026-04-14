@@ -11,6 +11,7 @@ from openfeature.exception import (
     ParseError,
     FlagNotFoundError,
 )
+from openfeature.track import TrackingEventDetails
 
 from openfeature_flagsmith.exceptions import FlagsmithProviderError
 from openfeature_flagsmith.provider import FlagsmithProvider
@@ -450,3 +451,143 @@ def test_resolve_boolean_details_uses_enabled_when_use_boolean_config_value_is_f
     assert result.value is True
     assert result.error_code is None
     assert result.reason is None
+
+
+# ---------------------------------------------------------------------------
+# Tracking
+# ---------------------------------------------------------------------------
+
+
+def test_track_is_noop_without_track_event_on_client() -> None:
+    # Given - client without track_event (e.g. older flagsmith version)
+    client = MagicMock(spec=[])
+    provider = FlagsmithProvider(client)
+
+    # When / Then - no error raised
+    provider.track("purchase")
+
+
+def test_track_is_noop_when_pipeline_analytics_not_configured(
+    mock_flagsmith_client: MagicMock,
+) -> None:
+    # Given - client has track_event but raises ValueError (no analytics config)
+    mock_flagsmith_client.track_event = MagicMock(
+        side_effect=ValueError("Pipeline analytics is not configured")
+    )
+    provider = FlagsmithProvider(mock_flagsmith_client)
+
+    # When / Then - no error raised, ValueError caught silently
+    provider.track("purchase")
+
+
+def test_track_delegates_to_client(mock_flagsmith_client: MagicMock) -> None:
+    # Given
+    mock_flagsmith_client.track_event = MagicMock()
+    provider = FlagsmithProvider(mock_flagsmith_client)
+
+    # When
+    provider.track(
+        "purchase",
+        evaluation_context=EvaluationContext(
+            targeting_key="user-123",
+            attributes={"plan": "premium"},
+        ),
+        tracking_event_details=TrackingEventDetails(
+            value=99.77,
+            attributes={"currency": "USD"},
+        ),
+    )
+
+    # Then
+    mock_flagsmith_client.track_event.assert_called_once_with(
+        "purchase",
+        identity_identifier="user-123",
+        traits={"plan": "premium"},
+        metadata={"value": 99.77, "currency": "USD"},
+    )
+
+
+def test_track_with_minimal_args(mock_flagsmith_client: MagicMock) -> None:
+    # Given
+    mock_flagsmith_client.track_event = MagicMock()
+    provider = FlagsmithProvider(mock_flagsmith_client)
+
+    # When
+    provider.track("signup")
+
+    # Then
+    mock_flagsmith_client.track_event.assert_called_once_with(
+        "signup",
+        identity_identifier=None,
+        traits=None,
+        metadata=None,
+    )
+
+
+def test_track_value_takes_precedence_over_attributes_value(
+    mock_flagsmith_client: MagicMock,
+) -> None:
+    # Given - attributes also has a "value" key
+    mock_flagsmith_client.track_event = MagicMock()
+    provider = FlagsmithProvider(mock_flagsmith_client)
+
+    # When
+    provider.track(
+        "checkout",
+        tracking_event_details=TrackingEventDetails(
+            value=99.77,
+            attributes={"value": "should_be_overwritten", "other": "kept"},
+        ),
+    )
+
+    # Then - explicit .value wins over attributes["value"]
+    mock_flagsmith_client.track_event.assert_called_once_with(
+        "checkout",
+        identity_identifier=None,
+        traits=None,
+        metadata={"value": 99.77, "other": "kept"},
+    )
+
+
+def test_track_with_details_value_only(mock_flagsmith_client: MagicMock) -> None:
+    # Given
+    mock_flagsmith_client.track_event = MagicMock()
+    provider = FlagsmithProvider(mock_flagsmith_client)
+
+    # When
+    provider.track("checkout", tracking_event_details=TrackingEventDetails(value=99.77))
+
+    # Then
+    mock_flagsmith_client.track_event.assert_called_once_with(
+        "checkout",
+        identity_identifier=None,
+        traits=None,
+        metadata={"value": 99.77},
+    )
+
+
+def test_track_extracts_traits_from_context(mock_flagsmith_client: MagicMock) -> None:
+    # Given - nested traits take precedence over flat attributes (same rule as _get_flags)
+    mock_flagsmith_client.track_event = MagicMock()
+    provider = FlagsmithProvider(mock_flagsmith_client)
+
+    # When
+    provider.track(
+        "page_view",
+        evaluation_context=EvaluationContext(
+            targeting_key="user-123",
+            attributes={
+                "shared_key": "flat_value",
+                "other": "kept",
+                "traits": {"shared_key": "nested_value"},
+            },
+        ),
+    )
+
+    # Then
+    mock_flagsmith_client.track_event.assert_called_once_with(
+        "page_view",
+        identity_identifier="user-123",
+        traits={"shared_key": "nested_value", "other": "kept"},
+        metadata=None,
+    )
