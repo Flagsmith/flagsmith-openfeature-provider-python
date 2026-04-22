@@ -44,6 +44,13 @@ class FlagsmithProvider(AbstractProvider):
         evaluation_context: typing.Optional[EvaluationContext] = None,
         tracking_event_details: typing.Optional[TrackingEventDetails] = None,
     ) -> None:
+        """
+        Records a custom event via the Flagsmith client's pipeline analytics.
+
+        No-ops if the client lacks pipeline analytics support or configuration.
+        An explicit ``tracking_event_details.value`` overrides any same-named
+        key in ``attributes``.
+        """
         # Guard against older flagsmith versions or duck-typed clients
         # that don't have track_event.
         if not hasattr(self._client, "track_event"):
@@ -68,6 +75,8 @@ class FlagsmithProvider(AbstractProvider):
                 metadata=metadata,
             )
         except ValueError:
+            # Flagsmith raises ValueError when pipeline analytics is not
+            # configured; OpenFeature spec requires track() to no-op.
             return
 
     def get_metadata(self) -> Metadata:
