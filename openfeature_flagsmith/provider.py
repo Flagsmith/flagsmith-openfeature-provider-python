@@ -12,7 +12,8 @@ from openfeature.exception import (
     TypeMismatchError,
 )
 from openfeature.flag_evaluation import FlagResolutionDetails, FlagType
-from openfeature.provider import Metadata, AbstractProvider
+from openfeature.provider import AbstractProvider, Metadata
+from openfeature.track import TrackingEventDetails
 
 from openfeature_flagsmith.exceptions import FlagsmithProviderError
 
@@ -22,6 +23,17 @@ _BASIC_FLAG_TYPE_MAPPINGS = {
     FlagType.FLOAT: float,
     FlagType.STRING: str,
 }
+
+
+class TrackingMetadata(typing.TypedDict, total=False):
+    """
+    Shape of the metadata dict forwarded to ``Flagsmith.track_event``.
+
+    ``value`` holds the numeric value from ``TrackingEventDetails.value`` when
+    set. All other keys pass through from ``TrackingEventDetails.attributes``.
+    """
+
+    value: float
 
 
 class FlagsmithProvider(AbstractProvider):
@@ -36,6 +48,49 @@ class FlagsmithProvider(AbstractProvider):
         self.return_value_for_disabled_flags = return_value_for_disabled_flags
         self.use_flagsmith_defaults = use_flagsmith_defaults
         self.use_boolean_config_value = use_boolean_config_value
+
+    def track(
+        self,
+        tracking_event_name: str,
+        evaluation_context: typing.Optional[EvaluationContext] = None,
+        tracking_event_details: typing.Optional[TrackingEventDetails] = None,
+    ) -> None:
+        """
+        Records a custom event via the Flagsmith client's pipeline analytics.
+
+        No-ops if the client lacks pipeline analytics support or configuration.
+        An explicit ``tracking_event_details.value`` overrides any same-named
+        key in ``attributes``.
+        """
+        # Guard against older flagsmith versions or duck-typed clients
+        # that don't have track_event.
+        if not hasattr(self._client, "track_event"):
+            return
+
+        identifier = evaluation_context.targeting_key if evaluation_context else None
+        traits = self._extract_traits(evaluation_context)
+
+        metadata: typing.Optional[TrackingMetadata] = None
+        if tracking_event_details is not None:
+            metadata = typing.cast(
+                TrackingMetadata, dict(tracking_event_details.attributes)
+            )
+            if tracking_event_details.value is not None:
+                metadata["value"] = tracking_event_details.value
+            if not metadata:
+                metadata = None
+
+        try:
+            self._client.track_event(
+                tracking_event_name,
+                identity_identifier=identifier,
+                traits=traits,
+                metadata=metadata,
+            )
+        except ValueError:
+            # Flagsmith raises ValueError when pipeline analytics is not
+            # configured; OpenFeature spec requires track() to no-op.
+            return
 
     def get_metadata(self) -> Metadata:
         return Metadata(name="FlagsmithProvider")
@@ -132,12 +187,21 @@ class FlagsmithProvider(AbstractProvider):
             % (flag_key, flag_type.value)
         )
 
+    @staticmethod
+    def _extract_traits(
+        evaluation_context: typing.Optional[EvaluationContext],
+    ) -> typing.Optional[typing.Dict[str, typing.Any]]:
+        if not evaluation_context or not evaluation_context.attributes:
+            return None
+        nested = evaluation_context.attributes.get("traits", {})
+        flat = {k: v for k, v in evaluation_context.attributes.items() if k != "traits"}
+        merged = {**flat, **nested}
+        return merged or None
+
     def _get_flags(self, evaluation_context: EvaluationContext = EvaluationContext()):
         if targeting_key := evaluation_context.targeting_key:
-            nested_traits = evaluation_context.attributes.pop("traits", {})
-            flattened_traits = {**evaluation_context.attributes, **nested_traits}
             return self._client.get_identity_flags(
                 identifier=targeting_key,
-                traits=flattened_traits,
+                traits=self._extract_traits(evaluation_context) or {},
             )
         return self._client.get_environment_flags()
