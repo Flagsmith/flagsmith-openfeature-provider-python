@@ -200,10 +200,8 @@ class FlagsmithProvider(AbstractProvider):
 
     def _get_flags(self, evaluation_context: EvaluationContext = EvaluationContext()):
         if targeting_key := evaluation_context.targeting_key:
-            nested_traits = evaluation_context.attributes.pop("traits", {})
-            flattened_traits = {**evaluation_context.attributes, **nested_traits}
             return self._client.get_identity_flags(
                 identifier=targeting_key,
-                traits=flattened_traits,
+                traits=self._extract_traits(evaluation_context) or {},
             )
         return self._client.get_environment_flags()
