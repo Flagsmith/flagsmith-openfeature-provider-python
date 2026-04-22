@@ -25,6 +25,17 @@ _BASIC_FLAG_TYPE_MAPPINGS = {
 }
 
 
+class TrackingMetadata(typing.TypedDict, total=False):
+    """
+    Shape of the metadata dict forwarded to ``Flagsmith.track_event``.
+
+    ``value`` holds the numeric value from ``TrackingEventDetails.value`` when
+    set. All other keys pass through from ``TrackingEventDetails.attributes``.
+    """
+
+    value: float
+
+
 class FlagsmithProvider(AbstractProvider):
     def __init__(
         self,
@@ -59,9 +70,11 @@ class FlagsmithProvider(AbstractProvider):
         identifier = evaluation_context.targeting_key if evaluation_context else None
         traits = self._extract_traits(evaluation_context)
 
-        metadata: typing.Optional[typing.Dict[str, typing.Any]] = None
+        metadata: typing.Optional[TrackingMetadata] = None
         if tracking_event_details is not None:
-            metadata = dict(tracking_event_details.attributes)
+            metadata = typing.cast(
+                TrackingMetadata, dict(tracking_event_details.attributes)
+            )
             if tracking_event_details.value is not None:
                 metadata["value"] = tracking_event_details.value
             if not metadata:
