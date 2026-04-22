@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.2.0](https://github.com/Flagsmith/flagsmith-openfeature-provider-python/compare/v0.1.6...v0.2.0) (2026-04-22)
+
+
+### Features
+
+* Implement Tracking API ([#35](https://github.com/Flagsmith/flagsmith-openfeature-provider-python/issues/35)) ([872bd8c](https://github.com/Flagsmith/flagsmith-openfeature-provider-python/commit/872bd8cd2512b967f0236c2547f6209d94aa5cad))
+
+
+### CI
+
+* Build and publish a wheel ([#31](https://github.com/Flagsmith/flagsmith-openfeature-provider-python/issues/31)) ([f5cec15](https://github.com/Flagsmith/flagsmith-openfeature-provider-python/commit/f5cec158975297fc81a13fe511c9512c51ea03e5))
+
 ## [0.1.6](https://github.com/Flagsmith/flagsmith-openfeature-provider-python/compare/v0.1.5...v0.1.6) (2026-03-24)
 
 
