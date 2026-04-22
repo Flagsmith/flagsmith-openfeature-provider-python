@@ -56,7 +56,7 @@ class FlagsmithProvider(AbstractProvider):
         if not hasattr(self._client, "track_event"):
             return
 
-        identity = evaluation_context.targeting_key if evaluation_context else None
+        identifier = evaluation_context.targeting_key if evaluation_context else None
         traits = self._extract_traits(evaluation_context)
 
         metadata: typing.Optional[typing.Dict[str, typing.Any]] = None
@@ -70,7 +70,7 @@ class FlagsmithProvider(AbstractProvider):
         try:
             self._client.track_event(
                 tracking_event_name,
-                identity_identifier=identity,
+                identity_identifier=identifier,
                 traits=traits,
                 metadata=metadata,
             )
