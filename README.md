@@ -78,7 +78,7 @@ client = Flagsmith(
     environment_key="your-environment-key",
     pipeline_analytics_config=PipelineAnalyticsConfig(
         analytics_server_url="https://analytics-collector.flagsmith.com/",
-        max_buffer=1000,            # optional, default 1000
+        max_buffer_items=1000,      # optional, default 1000
         flush_interval_seconds=10,  # optional, default 10s
     ),
 )
