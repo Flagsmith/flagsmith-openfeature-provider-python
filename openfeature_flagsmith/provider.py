@@ -2,7 +2,10 @@ import json
 import typing
 from json import JSONDecodeError
 
-from flagsmith.exceptions import FlagsmithClientError
+from flagsmith.exceptions import (
+    FlagsmithClientError,
+    FlagsmithFeatureDoesNotExistError,
+)
 from flagsmith.flagsmith import Flagsmith
 from openfeature.evaluation_context import EvaluationContext
 from openfeature.exception import (
@@ -154,6 +157,10 @@ class FlagsmithProvider(AbstractProvider):
     ) -> FlagResolutionDetails:
         try:
             flag = self._get_flags(evaluation_context).get_flag(flag_key)
+        except FlagsmithFeatureDoesNotExistError as e:
+            raise FlagNotFoundError(
+                error_message="Flag '%s' was not found." % flag_key
+            ) from e
         except FlagsmithClientError as e:
             raise FlagsmithProviderError(
                 error_code=ErrorCode.GENERAL,
