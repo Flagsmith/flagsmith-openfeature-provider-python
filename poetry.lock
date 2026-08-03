@@ -184,18 +184,18 @@ typing = ["typing-extensions (>=4.8) ; python_version < \"3.11\""]
 
 [[package]]
 name = "flagsmith"
-version = "5.2.0"
+version = "6.1.0"
 description = "Flagsmith Python SDK"
 optional = false
-python-versions = "<4,>=3.9"
+python-versions = "<4,>=3.10"
 groups = ["main"]
 files = [
-    {file = "flagsmith-5.2.0-py3-none-any.whl", hash = "sha256:07114d9ccaa1206d13a995bcd99a96ea4c4b7bda8c731b1d023ca233189879cc"},
-    {file = "flagsmith-5.2.0.tar.gz", hash = "sha256:734d6ea733586fed2d96714203f8fb4f997e0039f3a4966f02c51574a7786d68"},
+    {file = "flagsmith-6.1.0-py3-none-any.whl", hash = "sha256:c1adf56cd5cabcaf3fdd1b0dad8d3fc6e621a96bc2703b88c98ed9da91ead792"},
+    {file = "flagsmith-6.1.0.tar.gz", hash = "sha256:f62e74f3aa2220702a60edc76e1eb7ebca46a2967da938455efa4d1642364f46"},
 ]
 
 [package.dependencies]
-flagsmith-flag-engine = ">=10.0.3,<11.0.0"
+flagsmith-flag-engine = ">=10.2.0,<11.0.0"
 iso8601 = {version = ">=2.1.0,<3.0.0", markers = "python_version < \"3.11\""}
 requests = ">=2.32.3,<3.0.0"
 requests-futures = ">=1.0.1,<2.0.0"
@@ -204,14 +204,14 @@ typing-extensions = ">=4.15.0,<5.0.0"
 
 [[package]]
 name = "flagsmith-flag-engine"
-version = "10.0.3"
+version = "10.2.0"
 description = "Flag engine for the Flagsmith API."
 optional = false
 python-versions = "*"
 groups = ["main"]
 files = [
-    {file = "flagsmith_flag_engine-10.0.3-py3-none-any.whl", hash = "sha256:aed9009377fc1a6322483277f971f06d542668a69d93cbe4a3efd4baae78dfc1"},
-    {file = "flagsmith_flag_engine-10.0.3.tar.gz", hash = "sha256:0aa449bb87bee54fc67b5c7ca25eca78246a7bbb5a6cc229260c3f262d58ac54"},
+    {file = "flagsmith_flag_engine-10.2.0-py3-none-any.whl", hash = "sha256:c9bed3ee15487057dc61144d34d101d98db255f17d2c739f02794841a5c98502"},
+    {file = "flagsmith_flag_engine-10.2.0.tar.gz", hash = "sha256:d935c9fb639e8acc5b9ff4599ec570e1b2f3f7b7874fc789a6eca3db5665a31b"},
 ]
 
 [package.dependencies]
@@ -802,4 +802,4 @@ test = ["covdefaults (>=2.3)", "coverage (>=7.2.7)", "coverage-enable-subprocess
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10,<4.0"
-content-hash = "59e0a22ab4299d665eebfd14d8a178a90c158c61a3b019194661a9f19d071942"
+content-hash = "85101a6d38fa1b56f9a451a8340cb6cbc1e988f136545b472aef72fdae1ea359"
