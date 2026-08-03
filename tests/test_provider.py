@@ -1,4 +1,4 @@
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, create_autospec
 
 import pytest
 from flagsmith import Flagsmith
@@ -19,8 +19,17 @@ from openfeature_flagsmith.provider import FlagsmithProvider
 
 
 @pytest.fixture()
-def mock_flagsmith_client() -> MagicMock():
-    return MagicMock(spec=Flagsmith)
+def mock_flagsmith_client() -> MagicMock:
+    # create_autospec validates call signatures; the loose MagicMock(spec=...)
+    # it replaces let track_event(identity_identifier=...) pass silently.
+    return create_autospec(Flagsmith, instance=True)
+
+
+@pytest.fixture()
+def tracking_flagsmith_client(mock_flagsmith_client: MagicMock) -> MagicMock:
+    # The provider treats a client without _event_processor as events-disabled.
+    mock_flagsmith_client._event_processor = MagicMock()
+    return mock_flagsmith_client
 
 
 def test_get_metadata(mock_flagsmith_client: MagicMock) -> None:
@@ -457,36 +466,48 @@ def test_resolve_boolean_details_uses_enabled_when_use_boolean_config_value_is_f
 
 
 # ---------------------------------------------------------------------------
-# Tracking
+# Tracking: custom events
 # ---------------------------------------------------------------------------
 
 
-def test_track_is_noop_without_track_event_on_client() -> None:
-    # Given - client without track_event (e.g. older flagsmith version)
-    client = MagicMock(spec=[])
-    provider = FlagsmithProvider(client)
+def test_track_is_noop_when_events_disabled(
+    mock_flagsmith_client: MagicMock,
+) -> None:
+    # Given - no _event_processor on the client (events not enabled)
+    provider = FlagsmithProvider(mock_flagsmith_client)
+
+    # When
+    provider.track("purchase")
+
+    # Then - dropped before any SDK call
+    mock_flagsmith_client.track_event.assert_not_called()
+
+
+def test_track_swallows_value_error_from_sdk(
+    tracking_flagsmith_client: MagicMock,
+) -> None:
+    # Given
+    tracking_flagsmith_client.track_event.side_effect = ValueError("events disabled")
+    provider = FlagsmithProvider(tracking_flagsmith_client)
 
     # When / Then - no error raised
     provider.track("purchase")
 
 
-def test_track_is_noop_when_pipeline_analytics_not_configured(
-    mock_flagsmith_client: MagicMock,
+def test_track_swallows_unexpected_exceptions(
+    tracking_flagsmith_client: MagicMock,
 ) -> None:
-    # Given - client has track_event but raises ValueError (no analytics config)
-    mock_flagsmith_client.track_event = MagicMock(
-        side_effect=ValueError("Pipeline analytics is not configured")
-    )
-    provider = FlagsmithProvider(mock_flagsmith_client)
+    # Given - OF spec section 6: track() must never raise into the caller
+    tracking_flagsmith_client.track_event.side_effect = RuntimeError("boom")
+    provider = FlagsmithProvider(tracking_flagsmith_client)
 
-    # When / Then - no error raised, ValueError caught silently
+    # When / Then - no error raised
     provider.track("purchase")
 
 
-def test_track_delegates_to_client(mock_flagsmith_client: MagicMock) -> None:
+def test_track_delegates_to_client(tracking_flagsmith_client: MagicMock) -> None:
     # Given
-    mock_flagsmith_client.track_event = MagicMock()
-    provider = FlagsmithProvider(mock_flagsmith_client)
+    provider = FlagsmithProvider(tracking_flagsmith_client)
 
     # When
     provider.track(
@@ -501,78 +522,85 @@ def test_track_delegates_to_client(mock_flagsmith_client: MagicMock) -> None:
         ),
     )
 
-    # Then
-    mock_flagsmith_client.track_event.assert_called_once_with(
+    # Then - value is first-class, attributes become metadata
+    tracking_flagsmith_client.track_event.assert_called_once_with(
         "purchase",
-        identity_identifier="user-123",
+        identifier="user-123",
+        value=99.77,
         traits={"plan": "premium"},
-        metadata={"value": 99.77, "currency": "USD"},
+        metadata={"currency": "USD"},
     )
 
 
-def test_track_with_minimal_args(mock_flagsmith_client: MagicMock) -> None:
+def test_track_with_minimal_args(tracking_flagsmith_client: MagicMock) -> None:
     # Given
-    mock_flagsmith_client.track_event = MagicMock()
-    provider = FlagsmithProvider(mock_flagsmith_client)
+    provider = FlagsmithProvider(tracking_flagsmith_client)
 
     # When
     provider.track("signup")
 
     # Then
-    mock_flagsmith_client.track_event.assert_called_once_with(
+    tracking_flagsmith_client.track_event.assert_called_once_with(
         "signup",
-        identity_identifier=None,
+        identifier=None,
+        value=None,
         traits=None,
         metadata=None,
     )
 
 
-def test_track_value_takes_precedence_over_attributes_value(
-    mock_flagsmith_client: MagicMock,
+def test_track_attributes_pass_through_as_metadata(
+    tracking_flagsmith_client: MagicMock,
 ) -> None:
-    # Given - attributes also has a "value" key
-    mock_flagsmith_client.track_event = MagicMock()
-    provider = FlagsmithProvider(mock_flagsmith_client)
+    # Given - attributes are metadata verbatim; details.value is first-class
+    provider = FlagsmithProvider(tracking_flagsmith_client)
 
     # When
     provider.track(
         "checkout",
         tracking_event_details=TrackingEventDetails(
             value=99.77,
-            attributes={"value": "should_be_overwritten", "other": "kept"},
+            attributes={"value": "a-metadata-key", "other": "kept"},
         ),
     )
 
-    # Then - explicit .value wins over attributes["value"]
-    mock_flagsmith_client.track_event.assert_called_once_with(
-        "checkout",
-        identity_identifier=None,
-        traits=None,
-        metadata={"value": 99.77, "other": "kept"},
-    )
-
-
-def test_track_with_details_value_only(mock_flagsmith_client: MagicMock) -> None:
-    # Given
-    mock_flagsmith_client.track_event = MagicMock()
-    provider = FlagsmithProvider(mock_flagsmith_client)
-
-    # When
-    provider.track("checkout", tracking_event_details=TrackingEventDetails(value=99.77))
-
     # Then
-    mock_flagsmith_client.track_event.assert_called_once_with(
+    tracking_flagsmith_client.track_event.assert_called_once_with(
         "checkout",
-        identity_identifier=None,
+        identifier=None,
+        value=99.77,
         traits=None,
-        metadata={"value": 99.77},
+        metadata={"value": "a-metadata-key", "other": "kept"},
     )
 
 
-def test_track_extracts_traits_from_context(mock_flagsmith_client: MagicMock) -> None:
+def test_track_non_numeric_value_is_dropped_with_warning(
+    tracking_flagsmith_client: MagicMock,
+) -> None:
+    # Given
+    provider = FlagsmithProvider(tracking_flagsmith_client)
+
+    # When - value is typed float|None but nothing enforces it at runtime
+    provider.track(
+        "checkout",
+        tracking_event_details=TrackingEventDetails(value="99.77"),  # type: ignore[arg-type]
+    )
+
+    # Then - sent without the value
+    tracking_flagsmith_client.track_event.assert_called_once_with(
+        "checkout",
+        identifier=None,
+        value=None,
+        traits=None,
+        metadata=None,
+    )
+
+
+def test_track_extracts_traits_from_context(
+    tracking_flagsmith_client: MagicMock,
+) -> None:
     # Given - nested traits take precedence over flat attributes (same rule as _get_flags)
-    mock_flagsmith_client.track_event = MagicMock()
-    provider = FlagsmithProvider(mock_flagsmith_client)
+    provider = FlagsmithProvider(tracking_flagsmith_client)
 
     # When
     provider.track(
@@ -588,12 +616,28 @@ def test_track_extracts_traits_from_context(mock_flagsmith_client: MagicMock) ->
     )
 
     # Then
-    mock_flagsmith_client.track_event.assert_called_once_with(
+    tracking_flagsmith_client.track_event.assert_called_once_with(
         "page_view",
-        identity_identifier="user-123",
+        identifier="user-123",
         traits={"shared_key": "nested_value", "other": "kept"},
+        value=None,
         metadata=None,
     )
+
+
+def test_track_drops_reserved_dollar_names(
+    tracking_flagsmith_client: MagicMock,
+) -> None:
+    # Given
+    provider = FlagsmithProvider(tracking_flagsmith_client)
+
+    # When
+    provider.track("$flag_exposure")
+    provider.track("$anything")
+
+    # Then - warned and dropped, never sent to the SDK
+    tracking_flagsmith_client.track_event.assert_not_called()
+    tracking_flagsmith_client.track_exposure_event.assert_not_called()
 
 
 # ---------------------------------------------------------------------------

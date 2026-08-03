@@ -1,4 +1,5 @@
 import json
+import logging
 import typing
 from json import JSONDecodeError
 
@@ -17,6 +18,9 @@ from openfeature.provider import AbstractProvider, Metadata
 from openfeature.track import TrackingEventDetails
 
 from openfeature_flagsmith.exceptions import FlagsmithProviderError
+from openfeature_flagsmith.tracking import EXPOSURE_TRACKING_EVENT
+
+logger = logging.getLogger(__name__)
 
 _BASIC_FLAG_TYPE_MAPPINGS = {
     FlagType.BOOLEAN: bool,
@@ -24,17 +28,6 @@ _BASIC_FLAG_TYPE_MAPPINGS = {
     FlagType.FLOAT: float,
     FlagType.STRING: str,
 }
-
-
-class TrackingMetadata(typing.TypedDict, total=False):
-    """
-    Shape of the metadata dict forwarded to ``Flagsmith.track_event``.
-
-    ``value`` holds the numeric value from ``TrackingEventDetails.value`` when
-    set. All other keys pass through from ``TrackingEventDetails.attributes``.
-    """
-
-    value: float
 
 
 class FlagsmithProvider(AbstractProvider):
@@ -57,41 +50,93 @@ class FlagsmithProvider(AbstractProvider):
         tracking_event_details: typing.Optional[TrackingEventDetails] = None,
     ) -> None:
         """
-        Records a custom event via the Flagsmith client's pipeline analytics.
+        Route OpenFeature tracking events to Flagsmith.
 
-        No-ops if the client lacks pipeline analytics support or configuration.
-        An explicit ``tracking_event_details.value`` overrides any same-named
-        key in ``attributes``.
+        ``EXPOSURE_TRACKING_EVENT`` records a flag/variant exposure; any other
+        name becomes a plain Flagsmith event with ``details.value`` first-class.
+        No-ops unless the client was initialized with ``enable_events``. Never
+        raises (OpenFeature spec section 6): unexpected errors are logged.
         """
-        # Guard against older flagsmith versions or duck-typed clients
-        # that don't have track_event.
-        if not hasattr(self._client, "track_event"):
+        try:
+            self._track(tracking_event_name, evaluation_context, tracking_event_details)
+        except Exception:
+            logger.warning(
+                'Failed to process tracking event "%s".',
+                tracking_event_name,
+                exc_info=True,
+            )
+
+    def _track(
+        self,
+        tracking_event_name: str,
+        evaluation_context: typing.Optional[EvaluationContext],
+        tracking_event_details: typing.Optional[TrackingEventDetails],
+    ) -> None:
+        # Private-attribute pragmatism: the SDK has no public events-enabled
+        # signal yet. Checked up front so disabled events never trigger
+        # network side effects (identity persistence, flag fetches).
+        if getattr(self._client, "_event_processor", None) is None:
+            logger.debug(
+                'Flagsmith events are disabled; dropping tracking event "%s".',
+                tracking_event_name,
+            )
             return
 
         identifier = evaluation_context.targeting_key if evaluation_context else None
         traits = self._extract_traits(evaluation_context)
 
-        metadata: typing.Optional[TrackingMetadata] = None
-        if tracking_event_details is not None:
-            metadata = typing.cast(
-                TrackingMetadata, dict(tracking_event_details.attributes)
+        if tracking_event_name == EXPOSURE_TRACKING_EVENT:
+            self._track_exposure(
+                identifier, traits, evaluation_context, tracking_event_details
             )
-            if tracking_event_details.value is not None:
-                metadata["value"] = tracking_event_details.value
-            if not metadata:
-                metadata = None
+            return
+
+        if tracking_event_name.startswith("$"):
+            logger.warning(
+                '"%s" is a reserved Flagsmith event name; use "%s" to record'
+                " exposures.",
+                tracking_event_name,
+                EXPOSURE_TRACKING_EVENT,
+            )
+            return
+
+        value = tracking_event_details.value if tracking_event_details else None
+        attributes = (
+            dict(tracking_event_details.attributes) if tracking_event_details else {}
+        )
+        if value is not None and not isinstance(value, (int, float)):
+            logger.warning(
+                'Tracking event "%s" details.value must be numeric;'
+                " sending without it.",
+                tracking_event_name,
+            )
+            value = None
 
         try:
             self._client.track_event(
                 tracking_event_name,
-                identity_identifier=identifier,
+                identifier=identifier,
+                value=value,
                 traits=traits,
-                metadata=metadata,
+                metadata=attributes or None,
             )
         except ValueError:
-            # Flagsmith raises ValueError when pipeline analytics is not
-            # configured; OpenFeature spec requires track() to no-op.
-            return
+            # Raised when events are disabled (racing the check above) or the
+            # SDK rejects the event name.
+            logger.debug(
+                'Flagsmith rejected tracking event "%s"; dropping it.',
+                tracking_event_name,
+                exc_info=True,
+            )
+
+    def _track_exposure(
+        self,
+        identifier: typing.Optional[str],
+        traits: typing.Optional[typing.Dict[str, typing.Any]],
+        evaluation_context: typing.Optional[EvaluationContext],
+        tracking_event_details: typing.Optional[TrackingEventDetails],
+    ) -> None:
+        raise NotImplementedError  # implemented in the exposure-routing task
 
     def get_metadata(self) -> Metadata:
         return Metadata(name="FlagsmithProvider")
