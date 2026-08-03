@@ -3,7 +3,10 @@ import logging
 import typing
 from json import JSONDecodeError
 
-from flagsmith.exceptions import FlagsmithClientError
+from flagsmith.exceptions import (
+    FlagsmithClientError,
+    FlagsmithFeatureDoesNotExistError,
+)
 from flagsmith.flagsmith import Flagsmith
 from flagsmith.models import Flag
 from openfeature.evaluation_context import EvaluationContext
@@ -136,7 +139,80 @@ class FlagsmithProvider(AbstractProvider):
         evaluation_context: typing.Optional[EvaluationContext],
         tracking_event_details: typing.Optional[TrackingEventDetails],
     ) -> None:
-        raise NotImplementedError  # implemented in the exposure-routing task
+        attributes = (
+            dict(tracking_event_details.attributes) if tracking_event_details else {}
+        )
+        flag_key = attributes.pop("flag_key", None)
+        variant = attributes.pop("variant", None)
+        metadata = attributes or None
+
+        if not isinstance(flag_key, str):
+            logger.warning(
+                '"%s" requires a string "flag_key" attribute; dropping exposure'
+                " event.",
+                EXPOSURE_TRACKING_EVENT,
+            )
+            return
+        if not identifier:
+            logger.info(
+                'Exposure for "%s" skipped: no targeting_key in the evaluation'
+                " context.",
+                flag_key,
+            )
+            return
+
+        if isinstance(variant, str):
+            self._client.track_exposure_event(
+                feature_name=flag_key,
+                identifier=identifier,
+                value=variant,
+                traits=traits,
+                metadata=metadata,
+            )
+            return
+
+        # Mirrors the SDK's get_experiment_flag guards, with the exposure
+        # attributed to the OF context's targeting key rather than any
+        # ambient identity. This resolution counts as a flag evaluation,
+        # exactly like get_experiment_flag itself.
+        try:
+            flag = self._client.get_identity_flags(
+                identifier=identifier,
+                traits=traits or {},
+                transient=self._is_transient(evaluation_context),
+            ).get_flag(flag_key)
+        except FlagsmithFeatureDoesNotExistError:
+            logger.info('Exposure for "%s" skipped: flag does not exist.', flag_key)
+            return
+        except FlagsmithClientError:
+            logger.warning(
+                'Exposure for "%s" skipped: failed to resolve the flag.',
+                flag_key,
+                exc_info=True,
+            )
+            return
+
+        if not isinstance(flag, Flag):
+            logger.info('Exposure for "%s" skipped: flag does not exist.', flag_key)
+            return
+        if not flag.enabled:
+            logger.info('Exposure for "%s" skipped: flag is disabled.', flag_key)
+            return
+        if flag.variant is None:
+            logger.info(
+                'Exposure for "%s" skipped: experiments require an enabled'
+                " multivariate flag.",
+                flag_key,
+            )
+            return
+
+        self._client.track_exposure_event(
+            feature_name=flag_key,
+            identifier=identifier,
+            value=flag.variant,
+            traits=traits,
+            metadata=metadata,
+        )
 
     def get_metadata(self) -> Metadata:
         return Metadata(name="FlagsmithProvider")

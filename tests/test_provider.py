@@ -16,6 +16,7 @@ from openfeature.track import TrackingEventDetails
 
 from openfeature_flagsmith.exceptions import FlagsmithProviderError
 from openfeature_flagsmith.provider import FlagsmithProvider
+from openfeature_flagsmith.tracking import EXPOSURE_TRACKING_EVENT
 
 
 @pytest.fixture()
@@ -834,3 +835,198 @@ def test_nested_trait_named_transient_is_kept(
     mock_flagsmith_client.get_identity_flags.assert_called_once_with(
         identifier="user-1", traits={"transient": "a-real-trait"}, transient=False
     )
+
+
+# ---------------------------------------------------------------------------
+# Tracking: exposures
+# ---------------------------------------------------------------------------
+
+
+def test_exposure_with_explicit_variant_sends_as_rendered(
+    tracking_flagsmith_client: MagicMock,
+) -> None:
+    # Given
+    provider = FlagsmithProvider(tracking_flagsmith_client)
+
+    # When
+    provider.track(
+        EXPOSURE_TRACKING_EVENT,
+        evaluation_context=EvaluationContext(
+            targeting_key="user-1", attributes={"plan": "pro"}
+        ),
+        tracking_event_details=TrackingEventDetails(
+            attributes={"flag_key": "my_exp", "variant": "treatment", "page": "home"}
+        ),
+    )
+
+    # Then - no flag resolution; remaining attributes become metadata
+    tracking_flagsmith_client.track_exposure_event.assert_called_once_with(
+        feature_name="my_exp",
+        identifier="user-1",
+        value="treatment",
+        traits={"plan": "pro"},
+        metadata={"page": "home"},
+    )
+    tracking_flagsmith_client.get_identity_flags.assert_not_called()
+
+
+def test_exposure_without_flag_key_is_dropped(
+    tracking_flagsmith_client: MagicMock,
+) -> None:
+    # Given
+    provider = FlagsmithProvider(tracking_flagsmith_client)
+
+    # When
+    provider.track(
+        EXPOSURE_TRACKING_EVENT,
+        evaluation_context=EvaluationContext(targeting_key="user-1"),
+        tracking_event_details=TrackingEventDetails(attributes={"variant": "t"}),
+    )
+
+    # Then
+    tracking_flagsmith_client.track_exposure_event.assert_not_called()
+
+
+def test_exposure_without_targeting_key_is_skipped(
+    tracking_flagsmith_client: MagicMock,
+) -> None:
+    # Given - exposures attribute to the OF context, never ambient state
+    provider = FlagsmithProvider(tracking_flagsmith_client)
+
+    # When
+    provider.track(
+        EXPOSURE_TRACKING_EVENT,
+        tracking_event_details=TrackingEventDetails(
+            attributes={"flag_key": "my_exp", "variant": "t"}
+        ),
+    )
+
+    # Then
+    tracking_flagsmith_client.track_exposure_event.assert_not_called()
+
+
+def test_variantless_exposure_resolves_flag_and_sends_variant(
+    tracking_flagsmith_client: MagicMock,
+) -> None:
+    # Given
+    tracking_flagsmith_client.get_identity_flags.return_value = Flags(
+        {
+            "my_exp": Flag(
+                feature_id=1,
+                feature_name="my_exp",
+                enabled=True,
+                value="v",
+                variant="treatment",
+            )
+        }
+    )
+    provider = FlagsmithProvider(tracking_flagsmith_client)
+
+    # When
+    provider.track(
+        EXPOSURE_TRACKING_EVENT,
+        evaluation_context=EvaluationContext(
+            targeting_key="user-1", attributes={"transient": True}
+        ),
+        tracking_event_details=TrackingEventDetails(attributes={"flag_key": "my_exp"}),
+    )
+
+    # Then - resolution honors the transient directive
+    tracking_flagsmith_client.get_identity_flags.assert_called_once_with(
+        identifier="user-1", traits={}, transient=True
+    )
+    tracking_flagsmith_client.track_exposure_event.assert_called_once_with(
+        feature_name="my_exp",
+        identifier="user-1",
+        value="treatment",
+        traits=None,
+        metadata=None,
+    )
+
+
+@pytest.mark.parametrize(
+    "flag",
+    [
+        pytest.param(DefaultFlag(enabled=True, value="v"), id="default-flag"),
+        pytest.param(
+            Flag(feature_id=1, feature_name="my_exp", enabled=False, value="v"),
+            id="disabled",
+        ),
+        pytest.param(
+            Flag(
+                feature_id=1,
+                feature_name="my_exp",
+                enabled=True,
+                value="v",
+                variant=None,
+            ),
+            id="no-variant",
+        ),
+    ],
+)
+def test_variantless_exposure_guard_chain_skips(
+    tracking_flagsmith_client: MagicMock, flag
+) -> None:
+    # Given - JS guard chain: real Flag, enabled, has variant
+    tracking_flagsmith_client.get_identity_flags.return_value = Flags({"my_exp": flag})
+    provider = FlagsmithProvider(tracking_flagsmith_client)
+
+    # When
+    provider.track(
+        EXPOSURE_TRACKING_EVENT,
+        evaluation_context=EvaluationContext(targeting_key="user-1"),
+        tracking_event_details=TrackingEventDetails(attributes={"flag_key": "my_exp"}),
+    )
+
+    # Then
+    tracking_flagsmith_client.track_exposure_event.assert_not_called()
+
+
+def test_variantless_exposure_missing_flag_is_skipped(
+    tracking_flagsmith_client: MagicMock,
+) -> None:
+    # Given - no default_flag_handler: get_flag raises
+    tracking_flagsmith_client.get_identity_flags.return_value = Flags({})
+    provider = FlagsmithProvider(tracking_flagsmith_client)
+
+    # When / Then - no error raised, no exposure recorded
+    provider.track(
+        EXPOSURE_TRACKING_EVENT,
+        evaluation_context=EvaluationContext(targeting_key="user-1"),
+        tracking_event_details=TrackingEventDetails(attributes={"flag_key": "nope"}),
+    )
+    tracking_flagsmith_client.track_exposure_event.assert_not_called()
+
+
+def test_variantless_exposure_client_error_is_swallowed(
+    tracking_flagsmith_client: MagicMock,
+) -> None:
+    # Given
+    tracking_flagsmith_client.get_identity_flags.side_effect = FlagsmithClientError("")
+    provider = FlagsmithProvider(tracking_flagsmith_client)
+
+    # When / Then - no error raised
+    provider.track(
+        EXPOSURE_TRACKING_EVENT,
+        evaluation_context=EvaluationContext(targeting_key="user-1"),
+        tracking_event_details=TrackingEventDetails(attributes={"flag_key": "my_exp"}),
+    )
+    tracking_flagsmith_client.track_exposure_event.assert_not_called()
+
+
+def test_exposure_is_noop_when_events_disabled(
+    mock_flagsmith_client: MagicMock,
+) -> None:
+    # Given - no _event_processor: must not fetch flags or persist identities
+    provider = FlagsmithProvider(mock_flagsmith_client)
+
+    # When
+    provider.track(
+        EXPOSURE_TRACKING_EVENT,
+        evaluation_context=EvaluationContext(targeting_key="user-1"),
+        tracking_event_details=TrackingEventDetails(attributes={"flag_key": "my_exp"}),
+    )
+
+    # Then
+    mock_flagsmith_client.get_identity_flags.assert_not_called()
+    mock_flagsmith_client.track_exposure_event.assert_not_called()
