@@ -4,6 +4,7 @@ from json import JSONDecodeError
 
 from flagsmith.exceptions import FlagsmithClientError
 from flagsmith.flagsmith import Flagsmith
+from flagsmith.models import Flag
 from openfeature.evaluation_context import EvaluationContext
 from openfeature.exception import (
     ErrorCode,
@@ -11,7 +12,7 @@ from openfeature.exception import (
     ParseError,
     TypeMismatchError,
 )
-from openfeature.flag_evaluation import FlagResolutionDetails, FlagType
+from openfeature.flag_evaluation import FlagResolutionDetails, FlagType, Reason
 from openfeature.provider import AbstractProvider, Metadata
 from openfeature.track import TrackingEventDetails
 
@@ -164,7 +165,7 @@ class FlagsmithProvider(AbstractProvider):
             raise FlagNotFoundError(error_message="Flag '%s' was not found." % flag_key)
 
         if flag_type == FlagType.BOOLEAN and not self.use_boolean_config_value:
-            return FlagResolutionDetails(value=flag.enabled)
+            return self._build_details(flag, flag.enabled, evaluation_context)
 
         if not (self.return_value_for_disabled_flags or flag.enabled):
             raise FlagsmithProviderError(
@@ -174,10 +175,12 @@ class FlagsmithProvider(AbstractProvider):
 
         required_type = _BASIC_FLAG_TYPE_MAPPINGS.get(flag_type)
         if required_type and isinstance(flag.value, required_type):
-            return FlagResolutionDetails(value=flag.value)
+            return self._build_details(flag, flag.value, evaluation_context)
         elif flag_type is FlagType.OBJECT and isinstance(flag.value, str):
             try:
-                return FlagResolutionDetails(value=json.loads(flag.value))
+                return self._build_details(
+                    flag, json.loads(flag.value), evaluation_context
+                )
             except JSONDecodeError as e:
                 msg = "Unable to parse object from value for flag '%s'" % flag_key
                 raise ParseError(error_message=msg) from e
@@ -186,6 +189,51 @@ class FlagsmithProvider(AbstractProvider):
             error_message="Value for flag '%s' is not of type '%s'"
             % (flag_key, flag_type.value)
         )
+
+    def _build_details(
+        self,
+        flag: typing.Any,
+        value: typing.Any,
+        evaluation_context: EvaluationContext,
+    ) -> FlagResolutionDetails:
+        return FlagResolutionDetails(
+            value=value,
+            reason=self._parse_reason(flag, evaluation_context),
+            # DefaultFlag has no `variant` attribute; never use bare access.
+            variant=getattr(flag, "variant", None),
+            flag_metadata=self._build_flag_metadata(flag),
+        )
+
+    def _parse_reason(
+        self, flag: typing.Any, evaluation_context: EvaluationContext
+    ) -> Reason:
+        if flag.is_default:
+            return Reason.DEFAULT
+        if not flag.enabled:
+            return Reason.DISABLED
+        # Offline documents may be arbitrarily old; the exposure hook treats
+        # anything but TARGETING_MATCH as not fresh enough to record.
+        if getattr(self._client, "offline_mode", False):
+            return Reason.STALE
+        if evaluation_context.targeting_key:
+            return Reason.TARGETING_MATCH
+        return Reason.STATIC
+
+    def _build_flag_metadata(
+        self, flag: typing.Any
+    ) -> typing.Dict[str, typing.Union[bool, int, str]]:
+        # Keys are byte-identical with the JS provider (vendor-council aligned).
+        metadata: typing.Dict[str, typing.Union[bool, int, str]] = {
+            "enabled": flag.enabled
+        }
+        if isinstance(flag, Flag):
+            metadata["featureId"] = flag.feature_id
+        variant = getattr(flag, "variant", None)
+        if variant is not None:
+            metadata["experiment.arm"] = variant
+            metadata["experiment.active"] = flag.enabled
+            metadata["experiment.unit"] = "user"
+        return metadata
 
     @staticmethod
     def _extract_traits(
