@@ -242,14 +242,31 @@ class FlagsmithProvider(AbstractProvider):
         if not evaluation_context or not evaluation_context.attributes:
             return None
         nested = evaluation_context.attributes.get("traits", {})
-        flat = {k: v for k, v in evaluation_context.attributes.items() if k != "traits"}
+        # `traits` is unpacked below; the flat `transient` key is an
+        # evaluation directive (see _is_transient), not a trait.
+        flat = {
+            k: v
+            for k, v in evaluation_context.attributes.items()
+            if k not in ("traits", "transient")
+        }
         merged = {**flat, **nested}
         return merged or None
+
+    @staticmethod
+    def _is_transient(
+        evaluation_context: typing.Optional[EvaluationContext],
+    ) -> bool:
+        return bool(
+            evaluation_context
+            and evaluation_context.attributes
+            and evaluation_context.attributes.get("transient") is True
+        )
 
     def _get_flags(self, evaluation_context: EvaluationContext = EvaluationContext()):
         if targeting_key := evaluation_context.targeting_key:
             return self._client.get_identity_flags(
                 identifier=targeting_key,
                 traits=self._extract_traits(evaluation_context) or {},
+                transient=self._is_transient(evaluation_context),
             )
         return self._client.get_environment_flags()

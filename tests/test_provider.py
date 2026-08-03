@@ -317,7 +317,7 @@ def test_identity_flags_are_used_if_targeting_key_provided(
     assert result.reason == Reason.TARGETING_MATCH
 
     mock_flagsmith_client.get_identity_flags.assert_called_once_with(
-        identifier=targeting_key, traits=traits
+        identifier=targeting_key, traits=traits, transient=False
     )
 
 
@@ -353,7 +353,7 @@ def test_identity_flags_are_used_with_flat_attributes(
     assert result.reason == Reason.TARGETING_MATCH
 
     mock_flagsmith_client.get_identity_flags.assert_called_once_with(
-        identifier=targeting_key, traits=traits
+        identifier=targeting_key, traits=traits, transient=False
     )
 
 
@@ -394,6 +394,7 @@ def test_identity_flags_flat_attributes_and_nested_traits_are_merged(
     mock_flagsmith_client.get_identity_flags.assert_called_once_with(
         identifier=targeting_key,
         traits={"flat_trait": "flat_value", "nested_trait": "nested_value"},
+        transient=False,
     )
 
 
@@ -430,6 +431,7 @@ def test_identity_flags_nested_traits_take_precedence_over_flat_attributes(
     mock_flagsmith_client.get_identity_flags.assert_called_once_with(
         identifier=targeting_key,
         traits={"shared_key": "nested_value"},
+        transient=False,
     )
 
 
@@ -731,3 +733,60 @@ def test_resolve_object_details_parsed_json_carries_reason_and_metadata(
     assert result.value == {"a": 1}
     assert result.reason == Reason.STATIC
     assert result.flag_metadata == {"enabled": True, "featureId": 3}
+
+
+# ---------------------------------------------------------------------------
+# Transient identities
+# ---------------------------------------------------------------------------
+
+
+def test_transient_attribute_maps_to_transient_identity(
+    mock_flagsmith_client: MagicMock,
+) -> None:
+    # Given
+    key = "key"
+    mock_flagsmith_client.get_identity_flags.return_value = Flags(
+        {key: Flag(feature_id=1, feature_name=key, enabled=True, value="foo")}
+    )
+    provider = FlagsmithProvider(mock_flagsmith_client)
+
+    # When
+    provider.resolve_string_details(
+        flag_key=key,
+        default_value="default",
+        evaluation_context=EvaluationContext(
+            targeting_key="user-1",
+            attributes={"transient": True, "plan": "pro"},
+        ),
+    )
+
+    # Then - transient is a directive, not a trait
+    mock_flagsmith_client.get_identity_flags.assert_called_once_with(
+        identifier="user-1", traits={"plan": "pro"}, transient=True
+    )
+
+
+def test_nested_trait_named_transient_is_kept(
+    mock_flagsmith_client: MagicMock,
+) -> None:
+    # Given - only the flat `transient` key is a directive
+    key = "key"
+    mock_flagsmith_client.get_identity_flags.return_value = Flags(
+        {key: Flag(feature_id=1, feature_name=key, enabled=True, value="foo")}
+    )
+    provider = FlagsmithProvider(mock_flagsmith_client)
+
+    # When
+    provider.resolve_string_details(
+        flag_key=key,
+        default_value="default",
+        evaluation_context=EvaluationContext(
+            targeting_key="user-1",
+            attributes={"traits": {"transient": "a-real-trait"}},
+        ),
+    )
+
+    # Then
+    mock_flagsmith_client.get_identity_flags.assert_called_once_with(
+        identifier="user-1", traits={"transient": "a-real-trait"}, transient=False
+    )
