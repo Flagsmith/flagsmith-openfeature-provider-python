@@ -1030,3 +1030,11 @@ def test_exposure_is_noop_when_events_disabled(
     # Then
     mock_flagsmith_client.get_identity_flags.assert_not_called()
     mock_flagsmith_client.track_exposure_event.assert_not_called()
+
+
+def test_package_root_reexports() -> None:
+    import openfeature_flagsmith
+
+    assert openfeature_flagsmith.FlagsmithProvider is FlagsmithProvider
+    assert openfeature_flagsmith.EXPOSURE_TRACKING_EVENT == "feature_flag.exposure"
+    assert openfeature_flagsmith.FlagsmithExposureHook is not None
