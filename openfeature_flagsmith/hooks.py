@@ -19,9 +19,8 @@ DEFAULT_MAX_DEDUPE_ENTRIES = 10_000
 
 
 def _is_split_reason(reason: typing.Union[str, Reason, None]) -> bool:
-    # The Flagsmith engine annotates reasons with k=v metadata
-    # ("SPLIT; weight=30"); compare the leading token so the gate keeps
-    # working once the API exposes annotated reasons.
+    # The engine annotates reasons ("SPLIT; weight=30"); compare the
+    # leading token.
     if reason is None:
         return False
     return str(reason).split(";", 1)[0].strip() == Reason.SPLIT.value
@@ -29,9 +28,7 @@ def _is_split_reason(reason: typing.Union[str, Reason, None]) -> bool:
 
 class FlagsmithExposureHook(Hook):
     """
-    Records a Flagsmith exposure as a side effect of a flag evaluation, so one
-    call both resolves the flag and marks the identity as exposed to its
-    variant — the OpenFeature equivalent of Flagsmith's ``get_experiment_flag``::
+    Records a Flagsmith exposure as a side effect of a flag evaluation::
 
         hook = FlagsmithExposureHook(provider)
         client.get_string_details(
@@ -43,13 +40,8 @@ class FlagsmithExposureHook(Hook):
 
     Attaching the hook at a call site is the experiment declaration:
     evaluations without it never record exposures. Exposures only fire for
-    multivariate flags resolved with reason ``SPLIT`` (a percentage-split
-    assignment: enabled, identified, not offline; engine-annotated reason
-    strings like ``"SPLIT; weight=30"`` also match), and are deduped per
-    identity/flag/variant in a bounded, thread-safe LRU for the hook
-    instance's lifetime.
-
-    Tracking is an experimental OpenFeature capability (spec section 6).
+    flags resolved with a variant and reason ``SPLIT``, deduped per
+    identity/flag/variant in a bounded, thread-safe LRU.
     """
 
     def __init__(
@@ -68,8 +60,7 @@ class FlagsmithExposureHook(Hook):
         details: FlagEvaluationDetails,
         hints: HookHints,
     ) -> None:
-        # Fully error-contained: an uncaught after-hook error flips the
-        # evaluation itself to ERROR in the OpenFeature SDK.
+        # An uncaught after-hook error would flip the evaluation to ERROR.
         try:
             variant = details.variant
             if not isinstance(variant, str):
@@ -82,7 +73,7 @@ class FlagsmithExposureHook(Hook):
                 )
                 return
             targeting_key = hook_context.evaluation_context.targeting_key
-            # json.dumps of the list avoids delimiter-collision false dedupes.
+            # json.dumps avoids delimiter collisions in the key.
             dedupe_key = json.dumps([targeting_key, details.flag_key, variant])
             with self._lock:
                 if dedupe_key in self._seen:

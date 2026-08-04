@@ -56,9 +56,8 @@ class FlagsmithProvider(AbstractProvider):
         Route OpenFeature tracking events to Flagsmith.
 
         ``EXPOSURE_TRACKING_EVENT`` records a flag/variant exposure; any other
-        name becomes a plain Flagsmith event with ``details.value`` first-class.
-        No-ops unless the client was initialized with ``enable_events``. Never
-        raises (OpenFeature spec section 6): unexpected errors are logged.
+        name becomes a plain Flagsmith event. No-ops unless the client was
+        initialized with ``enable_events``. Never raises: errors are logged.
         """
         try:
             self._track(tracking_event_name, evaluation_context, tracking_event_details)
@@ -75,9 +74,8 @@ class FlagsmithProvider(AbstractProvider):
         evaluation_context: typing.Optional[EvaluationContext],
         tracking_event_details: typing.Optional[TrackingEventDetails],
     ) -> None:
-        # Private-attribute pragmatism: the SDK has no public events-enabled
-        # signal yet. Checked up front so disabled events never trigger
-        # network side effects (identity persistence, flag fetches).
+        # The SDK has no public events-enabled signal; check first so
+        # disabled events cause no network side effects.
         if getattr(self._client, "_event_processor", None) is None:
             logger.debug(
                 'Flagsmith events are disabled; dropping tracking event "%s".',
@@ -124,8 +122,7 @@ class FlagsmithProvider(AbstractProvider):
                 metadata=attributes or None,
             )
         except ValueError:
-            # Raised when events are disabled (racing the check above) or the
-            # SDK rejects the event name.
+            # Events disabled (racing the check above) or name rejected.
             logger.debug(
                 'Flagsmith rejected tracking event "%s"; dropping it.',
                 tracking_event_name,
@@ -171,10 +168,8 @@ class FlagsmithProvider(AbstractProvider):
             )
             return
 
-        # Mirrors the SDK's get_experiment_flag guards, with the exposure
-        # attributed to the OF context's targeting key rather than any
-        # ambient identity. This resolution counts as a flag evaluation,
-        # exactly like get_experiment_flag itself.
+        # Mirrors the SDK's get_experiment_flag guards, attributed to the
+        # context's targeting key rather than any ambient identity.
         try:
             flag = self._client.get_identity_flags(
                 identifier=identifier,
@@ -320,7 +315,7 @@ class FlagsmithProvider(AbstractProvider):
         return FlagResolutionDetails(
             value=value,
             reason=self._parse_reason(flag, evaluation_context),
-            # DefaultFlag has no `variant` attribute; never use bare access.
+            # DefaultFlag has no `variant` attribute.
             variant=getattr(flag, "variant", None),
             flag_metadata=self._build_flag_metadata(flag),
         )
@@ -332,15 +327,12 @@ class FlagsmithProvider(AbstractProvider):
             return Reason.DEFAULT
         if not flag.enabled:
             return Reason.DISABLED
-        # Offline documents may be arbitrarily old; the exposure hook treats
-        # anything but SPLIT as not fresh enough to record.
+        # Offline documents may be arbitrarily old.
         if getattr(self._client, "offline_mode", False):
             return Reason.STALE
         if evaluation_context.targeting_key:
-            # Engine taxonomy: a variant means a multivariate percentage-split
-            # assignment (SPLIT); TARGETING_MATCH is reserved for segment
-            # matches, which the API can't distinguish from environment
-            # defaults yet, so no-variant identity evaluations stay coarse.
+            # A variant means a percentage-split assignment (SPLIT);
+            # TARGETING_MATCH is reserved for segment matches.
             if getattr(flag, "variant", None) is not None:
                 return Reason.SPLIT
             return Reason.TARGETING_MATCH
@@ -349,7 +341,7 @@ class FlagsmithProvider(AbstractProvider):
     def _build_flag_metadata(
         self, flag: typing.Any
     ) -> typing.Dict[str, typing.Union[bool, int, str]]:
-        # Keys are byte-identical with the JS provider (vendor-council aligned).
+        # Keys are byte-identical with the JS provider.
         metadata: typing.Dict[str, typing.Union[bool, int, str]] = {
             "enabled": flag.enabled
         }
@@ -369,8 +361,7 @@ class FlagsmithProvider(AbstractProvider):
         if not evaluation_context or not evaluation_context.attributes:
             return None
         nested = evaluation_context.attributes.get("traits", {})
-        # `traits` is unpacked below; the flat `transient` key is an
-        # evaluation directive (see _is_transient), not a trait.
+        # The flat `transient` key is an evaluation directive, not a trait.
         flat = {
             k: v
             for k, v in evaluation_context.attributes.items()
