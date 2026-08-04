@@ -150,6 +150,13 @@ class FlagsmithProvider(AbstractProvider):
                 EXPOSURE_TRACKING_EVENT,
             )
             return
+        if variant is not None and not isinstance(variant, str):
+            logger.warning(
+                '"%s" requires a string "variant" attribute when provided;'
+                " dropping exposure event.",
+                EXPOSURE_TRACKING_EVENT,
+            )
+            return
         if not identifier:
             logger.info(
                 'Exposure for "%s" skipped: no targeting_key in the evaluation'

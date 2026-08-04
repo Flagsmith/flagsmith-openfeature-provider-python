@@ -884,6 +884,26 @@ def test_exposure_without_flag_key_is_dropped(
     tracking_flagsmith_client.track_exposure_event.assert_not_called()
 
 
+def test_exposure_with_non_string_variant_is_dropped(
+    tracking_flagsmith_client: MagicMock,
+) -> None:
+    # Given
+    provider = FlagsmithProvider(tracking_flagsmith_client)
+
+    # When
+    provider.track(
+        EXPOSURE_TRACKING_EVENT,
+        evaluation_context=EvaluationContext(targeting_key="user-1"),
+        tracking_event_details=TrackingEventDetails(
+            attributes={"flag_key": "my_exp", "variant": 123}
+        ),
+    )
+
+    # Then
+    tracking_flagsmith_client.track_exposure_event.assert_not_called()
+    tracking_flagsmith_client.get_identity_flags.assert_not_called()
+
+
 def test_exposure_without_targeting_key_is_skipped(
     tracking_flagsmith_client: MagicMock,
 ) -> None:
