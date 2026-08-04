@@ -104,7 +104,7 @@ details = of_client.get_string_details(
 )
 ```
 
-The hook records an exposure only when the flag resolved with a variant and reason `TARGETING_MATCH` (enabled, identified, not offline), and dedupes per identity/flag/variant for the hook instance's lifetime (bounded, thread-safe).
+The hook records an exposure only when the flag resolved with a variant and reason `SPLIT` — a multivariate percentage-split assignment (enabled, identified, not offline) — and dedupes per identity/flag/variant for the hook instance's lifetime (bounded, thread-safe).
 
 **2. Explicit `track()`.** Use the reserved `feature_flag.exposure` event name when you need to record an exposure decoupled from evaluation:
 

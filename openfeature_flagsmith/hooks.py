@@ -18,6 +18,15 @@ logger = logging.getLogger(__name__)
 DEFAULT_MAX_DEDUPE_ENTRIES = 10_000
 
 
+def _is_split_reason(reason: typing.Union[str, Reason, None]) -> bool:
+    # The Flagsmith engine annotates reasons with k=v metadata
+    # ("SPLIT; weight=30"); compare the leading token so the gate keeps
+    # working once the API exposes annotated reasons.
+    if reason is None:
+        return False
+    return str(reason).split(";", 1)[0].strip() == Reason.SPLIT.value
+
+
 class FlagsmithExposureHook(Hook):
     """
     Records a Flagsmith exposure as a side effect of a flag evaluation, so one
@@ -34,9 +43,11 @@ class FlagsmithExposureHook(Hook):
 
     Attaching the hook at a call site is the experiment declaration:
     evaluations without it never record exposures. Exposures only fire for
-    multivariate flags resolved with reason ``TARGETING_MATCH`` (enabled,
-    identified, not offline), and are deduped per identity/flag/variant in a
-    bounded, thread-safe LRU for the hook instance's lifetime.
+    multivariate flags resolved with reason ``SPLIT`` (a percentage-split
+    assignment: enabled, identified, not offline; engine-annotated reason
+    strings like ``"SPLIT; weight=30"`` also match), and are deduped per
+    identity/flag/variant in a bounded, thread-safe LRU for the hook
+    instance's lifetime.
 
     Tracking is an experimental OpenFeature capability (spec section 6).
     """
@@ -63,10 +74,9 @@ class FlagsmithExposureHook(Hook):
             variant = details.variant
             if not isinstance(variant, str):
                 return
-            if details.reason != Reason.TARGETING_MATCH:
+            if not _is_split_reason(details.reason):
                 logger.debug(
-                    'Exposure for "%s" skipped: resolution reason is %s, not'
-                    " TARGETING_MATCH.",
+                    'Exposure for "%s" skipped: resolution reason is %s, not' " SPLIT.",
                     details.flag_key,
                     details.reason,
                 )

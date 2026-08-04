@@ -21,14 +21,11 @@ from openfeature_flagsmith.tracking import EXPOSURE_TRACKING_EVENT
 
 @pytest.fixture()
 def mock_flagsmith_client() -> MagicMock:
-    # create_autospec validates call signatures; the loose MagicMock(spec=...)
-    # it replaces let track_event(identity_identifier=...) pass silently.
     return create_autospec(Flagsmith, instance=True)
 
 
 @pytest.fixture()
 def tracking_flagsmith_client(mock_flagsmith_client: MagicMock) -> MagicMock:
-    # The provider treats a client without _event_processor as events-disabled.
     mock_flagsmith_client._event_processor = MagicMock()
     return mock_flagsmith_client
 
@@ -474,13 +471,13 @@ def test_resolve_boolean_details_uses_enabled_when_use_boolean_config_value_is_f
 def test_track_is_noop_when_events_disabled(
     mock_flagsmith_client: MagicMock,
 ) -> None:
-    # Given - no _event_processor on the client (events not enabled)
+    # Given
     provider = FlagsmithProvider(mock_flagsmith_client)
 
     # When
     provider.track("purchase")
 
-    # Then - dropped before any SDK call
+    # Then
     mock_flagsmith_client.track_event.assert_not_called()
 
 
@@ -491,18 +488,18 @@ def test_track_swallows_value_error_from_sdk(
     tracking_flagsmith_client.track_event.side_effect = ValueError("events disabled")
     provider = FlagsmithProvider(tracking_flagsmith_client)
 
-    # When / Then - no error raised
+    # When / Then
     provider.track("purchase")
 
 
 def test_track_swallows_unexpected_exceptions(
     tracking_flagsmith_client: MagicMock,
 ) -> None:
-    # Given - OF spec section 6: track() must never raise into the caller
+    # Given
     tracking_flagsmith_client.track_event.side_effect = RuntimeError("boom")
     provider = FlagsmithProvider(tracking_flagsmith_client)
 
-    # When / Then - no error raised
+    # When / Then
     provider.track("purchase")
 
 
@@ -523,7 +520,7 @@ def test_track_delegates_to_client(tracking_flagsmith_client: MagicMock) -> None
         ),
     )
 
-    # Then - value is first-class, attributes become metadata
+    # Then
     tracking_flagsmith_client.track_event.assert_called_once_with(
         "purchase",
         identifier="user-123",
@@ -553,7 +550,7 @@ def test_track_with_minimal_args(tracking_flagsmith_client: MagicMock) -> None:
 def test_track_attributes_pass_through_as_metadata(
     tracking_flagsmith_client: MagicMock,
 ) -> None:
-    # Given - attributes are metadata verbatim; details.value is first-class
+    # Given
     provider = FlagsmithProvider(tracking_flagsmith_client)
 
     # When
@@ -581,13 +578,13 @@ def test_track_non_numeric_value_is_dropped_with_warning(
     # Given
     provider = FlagsmithProvider(tracking_flagsmith_client)
 
-    # When - value is typed float|None but nothing enforces it at runtime
+    # When
     provider.track(
         "checkout",
         tracking_event_details=TrackingEventDetails(value="99.77"),  # type: ignore[arg-type]
     )
 
-    # Then - sent without the value
+    # Then
     tracking_flagsmith_client.track_event.assert_called_once_with(
         "checkout",
         identifier=None,
@@ -600,7 +597,7 @@ def test_track_non_numeric_value_is_dropped_with_warning(
 def test_track_extracts_traits_from_context(
     tracking_flagsmith_client: MagicMock,
 ) -> None:
-    # Given - nested traits take precedence over flat attributes (same rule as _get_flags)
+    # Given
     provider = FlagsmithProvider(tracking_flagsmith_client)
 
     # When
@@ -636,7 +633,7 @@ def test_track_drops_reserved_dollar_names(
     provider.track("$flag_exposure")
     provider.track("$anything")
 
-    # Then - warned and dropped, never sent to the SDK
+    # Then
     tracking_flagsmith_client.track_event.assert_not_called()
     tracking_flagsmith_client.track_exposure_event.assert_not_called()
 
@@ -691,7 +688,7 @@ def test_resolve_identity_flag_with_variant_has_experiment_metadata(
     )
 
     # Then
-    assert result.reason == Reason.TARGETING_MATCH
+    assert result.reason == Reason.SPLIT
     assert result.variant == "treatment"
     assert result.flag_metadata == {
         "enabled": True,
@@ -705,7 +702,7 @@ def test_resolve_identity_flag_with_variant_has_experiment_metadata(
 def test_resolve_boolean_details_disabled_flag_has_disabled_reason(
     mock_flagsmith_client: MagicMock,
 ) -> None:
-    # Given - the boolean-as-enabled path resolves disabled flags today
+    # Given
     key = "my_feature"
     mock_flagsmith_client.get_environment_flags.return_value = Flags(
         {key: Flag(feature_id=1, feature_name=key, enabled=False, value=None)}
@@ -723,7 +720,7 @@ def test_resolve_boolean_details_disabled_flag_has_disabled_reason(
 def test_resolve_flagsmith_default_flag_metadata_has_no_feature_id(
     mock_flagsmith_client: MagicMock,
 ) -> None:
-    # Given - DefaultFlag has no feature_id and no variant attribute
+    # Given
     key = "my_feature"
     mock_flagsmith_client.get_environment_flags.return_value = Flags(
         {key: DefaultFlag(enabled=True, value="foo")}
@@ -757,14 +754,14 @@ def test_resolve_in_offline_mode_has_stale_reason(
         evaluation_context=EvaluationContext(targeting_key="user-1"),
     )
 
-    # Then - offline data must not read as a fresh targeting match
+    # Then
     assert result.reason == Reason.STALE
 
 
 def test_resolve_object_details_parsed_json_carries_reason_and_metadata(
     mock_flagsmith_client: MagicMock,
 ) -> None:
-    # Given - the JSON-parse branch is the third resolving branch
+    # Given
     key = "my_feature"
     mock_flagsmith_client.get_environment_flags.return_value = Flags(
         {key: Flag(feature_id=3, feature_name=key, enabled=True, value='{"a": 1}')}
@@ -805,7 +802,7 @@ def test_transient_attribute_maps_to_transient_identity(
         ),
     )
 
-    # Then - transient is a directive, not a trait
+    # Then
     mock_flagsmith_client.get_identity_flags.assert_called_once_with(
         identifier="user-1", traits={"plan": "pro"}, transient=True
     )
@@ -814,7 +811,7 @@ def test_transient_attribute_maps_to_transient_identity(
 def test_nested_trait_named_transient_is_kept(
     mock_flagsmith_client: MagicMock,
 ) -> None:
-    # Given - only the flat `transient` key is a directive
+    # Given
     key = "key"
     mock_flagsmith_client.get_identity_flags.return_value = Flags(
         {key: Flag(feature_id=1, feature_name=key, enabled=True, value="foo")}
@@ -859,7 +856,7 @@ def test_exposure_with_explicit_variant_sends_as_rendered(
         ),
     )
 
-    # Then - no flag resolution; remaining attributes become metadata
+    # Then
     tracking_flagsmith_client.track_exposure_event.assert_called_once_with(
         feature_name="my_exp",
         identifier="user-1",
@@ -890,7 +887,7 @@ def test_exposure_without_flag_key_is_dropped(
 def test_exposure_without_targeting_key_is_skipped(
     tracking_flagsmith_client: MagicMock,
 ) -> None:
-    # Given - exposures attribute to the OF context, never ambient state
+    # Given
     provider = FlagsmithProvider(tracking_flagsmith_client)
 
     # When
@@ -931,7 +928,7 @@ def test_variantless_exposure_resolves_flag_and_sends_variant(
         tracking_event_details=TrackingEventDetails(attributes={"flag_key": "my_exp"}),
     )
 
-    # Then - resolution honors the transient directive
+    # Then
     tracking_flagsmith_client.get_identity_flags.assert_called_once_with(
         identifier="user-1", traits={}, transient=True
     )
@@ -967,7 +964,7 @@ def test_variantless_exposure_resolves_flag_and_sends_variant(
 def test_variantless_exposure_guard_chain_skips(
     tracking_flagsmith_client: MagicMock, flag
 ) -> None:
-    # Given - JS guard chain: real Flag, enabled, has variant
+    # Given
     tracking_flagsmith_client.get_identity_flags.return_value = Flags({"my_exp": flag})
     provider = FlagsmithProvider(tracking_flagsmith_client)
 
@@ -985,11 +982,11 @@ def test_variantless_exposure_guard_chain_skips(
 def test_variantless_exposure_missing_flag_is_skipped(
     tracking_flagsmith_client: MagicMock,
 ) -> None:
-    # Given - no default_flag_handler: get_flag raises
+    # Given
     tracking_flagsmith_client.get_identity_flags.return_value = Flags({})
     provider = FlagsmithProvider(tracking_flagsmith_client)
 
-    # When / Then - no error raised, no exposure recorded
+    # When / Then
     provider.track(
         EXPOSURE_TRACKING_EVENT,
         evaluation_context=EvaluationContext(targeting_key="user-1"),
@@ -1005,7 +1002,7 @@ def test_variantless_exposure_client_error_is_swallowed(
     tracking_flagsmith_client.get_identity_flags.side_effect = FlagsmithClientError("")
     provider = FlagsmithProvider(tracking_flagsmith_client)
 
-    # When / Then - no error raised
+    # When / Then
     provider.track(
         EXPOSURE_TRACKING_EVENT,
         evaluation_context=EvaluationContext(targeting_key="user-1"),
@@ -1017,7 +1014,7 @@ def test_variantless_exposure_client_error_is_swallowed(
 def test_exposure_is_noop_when_events_disabled(
     mock_flagsmith_client: MagicMock,
 ) -> None:
-    # Given - no _event_processor: must not fetch flags or persist identities
+    # Given
     provider = FlagsmithProvider(mock_flagsmith_client)
 
     # When

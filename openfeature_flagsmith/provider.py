@@ -333,10 +333,16 @@ class FlagsmithProvider(AbstractProvider):
         if not flag.enabled:
             return Reason.DISABLED
         # Offline documents may be arbitrarily old; the exposure hook treats
-        # anything but TARGETING_MATCH as not fresh enough to record.
+        # anything but SPLIT as not fresh enough to record.
         if getattr(self._client, "offline_mode", False):
             return Reason.STALE
         if evaluation_context.targeting_key:
+            # Engine taxonomy: a variant means a multivariate percentage-split
+            # assignment (SPLIT); TARGETING_MATCH is reserved for segment
+            # matches, which the API can't distinguish from environment
+            # defaults yet, so no-variant identity evaluations stay coarse.
+            if getattr(flag, "variant", None) is not None:
+                return Reason.SPLIT
             return Reason.TARGETING_MATCH
         return Reason.STATIC
 

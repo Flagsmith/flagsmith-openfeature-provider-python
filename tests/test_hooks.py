@@ -34,14 +34,14 @@ def _hook_context(targeting_key="user-1") -> HookContext:
 
 
 def _details(
-    flag_key="my_exp", variant="treatment", reason=Reason.TARGETING_MATCH
+    flag_key="my_exp", variant="treatment", reason=Reason.SPLIT
 ) -> FlagEvaluationDetails:
     return FlagEvaluationDetails(
         flag_key=flag_key, value="v", variant=variant, reason=reason
     )
 
 
-def test_hook_records_exposure_on_targeting_match(mock_provider: MagicMock) -> None:
+def test_hook_records_exposure_on_split(mock_provider: MagicMock) -> None:
     # Given
     hook = FlagsmithExposureHook(mock_provider)
     context = _hook_context()
@@ -70,11 +70,18 @@ def test_hook_skips_without_variant(mock_provider: MagicMock) -> None:
 
 @pytest.mark.parametrize(
     "reason",
-    [Reason.STATIC, Reason.DEFAULT, Reason.DISABLED, Reason.STALE, Reason.CACHED],
+    [
+        Reason.STATIC,
+        Reason.DEFAULT,
+        Reason.DISABLED,
+        Reason.STALE,
+        Reason.CACHED,
+        Reason.TARGETING_MATCH,
+        None,
+        "SPLITTER; weight=30",
+    ],
 )
-def test_hook_skips_on_non_targeting_match_reason(
-    mock_provider: MagicMock, reason: Reason
-) -> None:
+def test_hook_skips_on_non_split_reason(mock_provider: MagicMock, reason) -> None:
     # Given
     hook = FlagsmithExposureHook(mock_provider)
 
@@ -85,11 +92,25 @@ def test_hook_skips_on_non_targeting_match_reason(
     mock_provider.track.assert_not_called()
 
 
+@pytest.mark.parametrize("reason", ["SPLIT", "SPLIT; weight=30", "SPLIT ; seed=abc"])
+def test_hook_accepts_engine_annotated_split_reasons(
+    mock_provider: MagicMock, reason: str
+) -> None:
+    # Given
+    hook = FlagsmithExposureHook(mock_provider)
+
+    # When
+    hook.after(hook_context=_hook_context(), details=_details(reason=reason), hints={})
+
+    # Then
+    mock_provider.track.assert_called_once()
+
+
 def test_hook_dedupes_per_identity_flag_variant(mock_provider: MagicMock) -> None:
     # Given
     hook = FlagsmithExposureHook(mock_provider)
 
-    # When - same triple twice, then each dimension varied
+    # When
     hook.after(hook_context=_hook_context(), details=_details(), hints={})
     hook.after(hook_context=_hook_context(), details=_details(), hints={})
     hook.after(
@@ -101,15 +122,15 @@ def test_hook_dedupes_per_identity_flag_variant(mock_provider: MagicMock) -> Non
         hook_context=_hook_context(), details=_details(variant="control"), hints={}
     )
 
-    # Then - 3 distinct exposures, 1 dedupe hit
+    # Then
     assert mock_provider.track.call_count == 3
 
 
 def test_hook_dedupe_is_bounded_lru(mock_provider: MagicMock) -> None:
-    # Given a tiny bound
+    # Given
     hook = FlagsmithExposureHook(mock_provider, max_dedupe_entries=2)
 
-    # When - third key evicts the first, which then fires again
+    # When
     hook.after(hook_context=_hook_context("u1"), details=_details(), hints={})
     hook.after(hook_context=_hook_context("u2"), details=_details(), hints={})
     hook.after(hook_context=_hook_context("u3"), details=_details(), hints={})
@@ -120,7 +141,7 @@ def test_hook_dedupe_is_bounded_lru(mock_provider: MagicMock) -> None:
 
 
 def test_hook_dedupe_key_is_collision_safe(mock_provider: MagicMock) -> None:
-    # Given - a naive join would collide these two identity/flag pairs
+    # Given
     hook = FlagsmithExposureHook(mock_provider)
 
     # When
@@ -135,16 +156,16 @@ def test_hook_dedupe_key_is_collision_safe(mock_provider: MagicMock) -> None:
         hints={},
     )
 
-    # Then - two distinct exposures
+    # Then
     assert mock_provider.track.call_count == 2
 
 
 def test_hook_swallows_provider_errors(mock_provider: MagicMock) -> None:
-    # Given - an uncaught after-hook error flips the evaluation to ERROR
+    # Given
     mock_provider.track.side_effect = RuntimeError("boom")
     hook = FlagsmithExposureHook(mock_provider)
 
-    # When / Then - no error raised
+    # When / Then
     hook.after(hook_context=_hook_context(), details=_details(), hints={})
 
 
@@ -159,19 +180,19 @@ def test_hook_is_thread_safe(mock_provider: MagicMock) -> None:
             hints={},
         )
 
-    # When - 100 concurrent evaluations over 10 identities
+    # When
     threads = [threading.Thread(target=fire, args=(i,)) for i in range(100)]
     for t in threads:
         t.start()
     for t in threads:
         t.join()
 
-    # Then - exactly one exposure per identity
+    # Then
     assert mock_provider.track.call_count == 10
 
 
 def test_hook_end_to_end_records_exposure_through_openfeature() -> None:
-    # Given - real OF SDK wiring: provider + per-invocation hook
+    # Given
     client = create_autospec(Flagsmith, instance=True)
     client._event_processor = MagicMock()
     client.get_identity_flags.return_value = Flags(
@@ -199,7 +220,7 @@ def test_hook_end_to_end_records_exposure_through_openfeature() -> None:
             FlagEvaluationOptions(hooks=[hook]),
         )
 
-        # Then - evaluation resolved AND the exposure reached the SDK
+        # Then
         assert details.value == "treatment-value"
         assert details.variant == "treatment"
         client.track_exposure_event.assert_called_once_with(
