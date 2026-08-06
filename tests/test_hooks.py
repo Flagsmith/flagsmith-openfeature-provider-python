@@ -1,4 +1,3 @@
-import threading
 from unittest.mock import MagicMock, create_autospec
 
 import pytest
@@ -106,60 +105,6 @@ def test_hook_accepts_engine_annotated_split_reasons(
     mock_provider.track.assert_called_once()
 
 
-def test_hook_dedupes_per_identity_flag_variant(mock_provider: MagicMock) -> None:
-    # Given
-    hook = FlagsmithExposureHook(mock_provider)
-
-    # When
-    hook.after(hook_context=_hook_context(), details=_details(), hints={})
-    hook.after(hook_context=_hook_context(), details=_details(), hints={})
-    hook.after(
-        hook_context=_hook_context(targeting_key="user-2"),
-        details=_details(),
-        hints={},
-    )
-    hook.after(
-        hook_context=_hook_context(), details=_details(variant="control"), hints={}
-    )
-
-    # Then
-    assert mock_provider.track.call_count == 3
-
-
-def test_hook_dedupe_is_bounded_lru(mock_provider: MagicMock) -> None:
-    # Given
-    hook = FlagsmithExposureHook(mock_provider, max_dedupe_entries=2)
-
-    # When
-    hook.after(hook_context=_hook_context("u1"), details=_details(), hints={})
-    hook.after(hook_context=_hook_context("u2"), details=_details(), hints={})
-    hook.after(hook_context=_hook_context("u3"), details=_details(), hints={})
-    hook.after(hook_context=_hook_context("u1"), details=_details(), hints={})
-
-    # Then
-    assert mock_provider.track.call_count == 4
-
-
-def test_hook_dedupe_key_is_collision_safe(mock_provider: MagicMock) -> None:
-    # Given
-    hook = FlagsmithExposureHook(mock_provider)
-
-    # When
-    hook.after(
-        hook_context=_hook_context('user"1'),
-        details=_details(flag_key="exp"),
-        hints={},
-    )
-    hook.after(
-        hook_context=_hook_context("user"),
-        details=_details(flag_key='1", "exp'),
-        hints={},
-    )
-
-    # Then
-    assert mock_provider.track.call_count == 2
-
-
 def test_hook_swallows_provider_errors(mock_provider: MagicMock) -> None:
     # Given
     mock_provider.track.side_effect = RuntimeError("boom")
@@ -167,28 +112,6 @@ def test_hook_swallows_provider_errors(mock_provider: MagicMock) -> None:
 
     # When / Then
     hook.after(hook_context=_hook_context(), details=_details(), hints={})
-
-
-def test_hook_is_thread_safe(mock_provider: MagicMock) -> None:
-    # Given
-    hook = FlagsmithExposureHook(mock_provider)
-
-    def fire(i: int) -> None:
-        hook.after(
-            hook_context=_hook_context(f"user-{i % 10}"),
-            details=_details(),
-            hints={},
-        )
-
-    # When
-    threads = [threading.Thread(target=fire, args=(i,)) for i in range(100)]
-    for t in threads:
-        t.start()
-    for t in threads:
-        t.join()
-
-    # Then
-    assert mock_provider.track.call_count == 10
 
 
 def test_hook_end_to_end_records_exposure_through_openfeature() -> None:

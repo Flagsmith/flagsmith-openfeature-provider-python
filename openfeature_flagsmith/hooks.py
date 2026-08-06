@@ -1,8 +1,5 @@
-import json
 import logging
-import threading
 import typing
-from collections import OrderedDict
 
 from openfeature.flag_evaluation import FlagEvaluationDetails, Reason
 from openfeature.hook import Hook, HookContext, HookHints
@@ -14,8 +11,6 @@ if typing.TYPE_CHECKING:
     from openfeature_flagsmith.provider import FlagsmithProvider
 
 logger = logging.getLogger(__name__)
-
-DEFAULT_MAX_DEDUPE_ENTRIES = 10_000
 
 
 def _is_split_reason(reason: typing.Union[str, Reason, None]) -> bool:
@@ -40,19 +35,12 @@ class FlagsmithExposureHook(Hook):
 
     Attaching the hook at a call site is the experiment declaration:
     evaluations without it never record exposures. Exposures only fire for
-    flags resolved with a variant and reason ``SPLIT``, deduped per
-    identity/flag/variant in a bounded, thread-safe LRU.
+    flags resolved with a variant and reason ``SPLIT``; duplicate exposures
+    are deduplicated downstream.
     """
 
-    def __init__(
-        self,
-        provider: "FlagsmithProvider",
-        max_dedupe_entries: int = DEFAULT_MAX_DEDUPE_ENTRIES,
-    ) -> None:
+    def __init__(self, provider: "FlagsmithProvider") -> None:
         self._provider = provider
-        self._max_dedupe_entries = max_dedupe_entries
-        self._seen: "OrderedDict[str, None]" = OrderedDict()
-        self._lock = threading.Lock()
 
     def after(
         self,
@@ -67,21 +55,11 @@ class FlagsmithExposureHook(Hook):
                 return
             if not _is_split_reason(details.reason):
                 logger.debug(
-                    'Exposure for "%s" skipped: resolution reason is %s, not' " SPLIT.",
+                    'Exposure for "%s" skipped: resolution reason is %s, not SPLIT.',
                     details.flag_key,
                     details.reason,
                 )
                 return
-            targeting_key = hook_context.evaluation_context.targeting_key
-            # json.dumps avoids delimiter collisions in the key.
-            dedupe_key = json.dumps([targeting_key, details.flag_key, variant])
-            with self._lock:
-                if dedupe_key in self._seen:
-                    self._seen.move_to_end(dedupe_key)
-                    return
-                self._seen[dedupe_key] = None
-                while len(self._seen) > self._max_dedupe_entries:
-                    self._seen.popitem(last=False)
             self._provider.track(
                 EXPOSURE_TRACKING_EVENT,
                 hook_context.evaluation_context,
