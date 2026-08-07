@@ -104,7 +104,7 @@ details = of_client.get_string_details(
 )
 ```
 
-The hook records an exposure only when the flag resolved with a variant and reason `SPLIT` — a multivariate percentage-split assignment (enabled, identified, not offline). Repeated evaluations are safe: duplicate exposures are deduplicated downstream.
+The hook records an exposure only when the flag resolved with a variant and reason `SPLIT` — a multivariate percentage-split assignment (enabled, identified, not offline). With `flagsmith` ≥6.2 resolution reasons come from the Flagsmith engine verbatim (e.g. `SPLIT; weight=30`); on older SDKs or APIs the provider infers them. Repeated evaluations are safe: duplicate exposures are deduplicated downstream.
 
 **2. Explicit `track()`.** Use the reserved `feature_flag.exposure` event name when you need to record an exposure decoupled from evaluation:
 

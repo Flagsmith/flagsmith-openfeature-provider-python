@@ -3,6 +3,7 @@ from unittest.mock import MagicMock, create_autospec
 import pytest
 from flagsmith import Flagsmith
 from flagsmith.models import Flag, Flags
+from flagsmith.version import __version__ as flagsmith_version
 from openfeature import api
 from openfeature.evaluation_context import EvaluationContext
 from openfeature.flag_evaluation import (
@@ -112,6 +113,53 @@ def test_hook_swallows_provider_errors(mock_provider: MagicMock) -> None:
 
     # When / Then
     hook.after(hook_context=_hook_context(), details=_details(), hints={})
+
+
+@pytest.mark.skipif(
+    tuple(int(p) for p in flagsmith_version.split(".")[:2]) < (6, 2),
+    reason="flagsmith >=6.2 surfaces engine reasons",
+)
+def test_hook_end_to_end_fires_on_engine_annotated_reason() -> None:
+    # Given
+    client = create_autospec(Flagsmith, instance=True)
+    client._event_processor = MagicMock()
+    client.get_identity_flags.return_value = Flags(
+        {
+            "my_exp": Flag(
+                feature_id=1,
+                feature_name="my_exp",
+                enabled=True,
+                value="treatment-value",
+                variant="treatment",
+                reason="SPLIT; weight=30",
+            )
+        }
+    )
+    provider = FlagsmithProvider(client)
+    api.set_provider(provider)
+    try:
+        of_client = api.get_client()
+        hook = FlagsmithExposureHook(provider)
+
+        # When
+        details = of_client.get_string_details(
+            "my_exp",
+            "control",
+            EvaluationContext(targeting_key="user-1"),
+            FlagEvaluationOptions(hooks=[hook]),
+        )
+
+        # Then
+        assert details.reason == "SPLIT; weight=30"
+        client.track_exposure_event.assert_called_once_with(
+            feature_name="my_exp",
+            identifier="user-1",
+            value="treatment",
+            traits=None,
+            metadata=None,
+        )
+    finally:
+        api.clear_providers()
 
 
 def test_hook_end_to_end_records_exposure_through_openfeature() -> None:

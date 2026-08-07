@@ -4,6 +4,7 @@ import pytest
 from flagsmith import Flagsmith
 from flagsmith.exceptions import FlagsmithClientError
 from flagsmith.models import DefaultFlag, Flag, Flags
+from flagsmith.version import __version__ as flagsmith_version
 from openfeature.evaluation_context import EvaluationContext
 from openfeature.exception import (
     ErrorCode,
@@ -641,6 +642,103 @@ def test_track_drops_reserved_dollar_names(
 # ---------------------------------------------------------------------------
 # Reasons / variant / flag_metadata
 # ---------------------------------------------------------------------------
+
+requires_engine_reasons = pytest.mark.skipif(
+    tuple(int(p) for p in flagsmith_version.split(".")[:2]) < (6, 2),
+    reason="flagsmith >=6.2 surfaces engine reasons",
+)
+
+
+@requires_engine_reasons
+@pytest.mark.parametrize(
+    "engine_reason",
+    ["SPLIT; weight=50.0", "TARGETING_MATCH; segment=premium", "DEFAULT"],
+)
+def test_engine_reason_is_forwarded_verbatim(
+    mock_flagsmith_client: MagicMock, engine_reason: str
+) -> None:
+    # Given
+    key = "my_feature"
+    mock_flagsmith_client.get_identity_flags.return_value = Flags(
+        {
+            key: Flag(
+                feature_id=1,
+                feature_name=key,
+                enabled=True,
+                value="v",
+                variant="treatment",
+                reason=engine_reason,
+            )
+        }
+    )
+    provider = FlagsmithProvider(mock_flagsmith_client)
+
+    # When
+    result = provider.resolve_string_details(
+        key,
+        default_value="default",
+        evaluation_context=EvaluationContext(targeting_key="user-1"),
+    )
+
+    # Then
+    assert result.reason == engine_reason
+
+
+@requires_engine_reasons
+def test_disabled_reason_wins_over_engine_reason(
+    mock_flagsmith_client: MagicMock,
+) -> None:
+    # Given
+    key = "my_feature"
+    mock_flagsmith_client.get_environment_flags.return_value = Flags(
+        {
+            key: Flag(
+                feature_id=1,
+                feature_name=key,
+                enabled=False,
+                value="v",
+                reason="DEFAULT",
+            )
+        }
+    )
+    provider = FlagsmithProvider(mock_flagsmith_client)
+
+    # When
+    result = provider.resolve_boolean_details(key, default_value=True)
+
+    # Then
+    assert result.reason == Reason.DISABLED
+
+
+@requires_engine_reasons
+def test_stale_reason_wins_over_engine_reason(
+    mock_flagsmith_client: MagicMock,
+) -> None:
+    # Given
+    key = "my_feature"
+    mock_flagsmith_client.offline_mode = True
+    mock_flagsmith_client.get_identity_flags.return_value = Flags(
+        {
+            key: Flag(
+                feature_id=1,
+                feature_name=key,
+                enabled=True,
+                value="v",
+                reason="SPLIT; weight=50.0",
+            )
+        }
+    )
+    provider = FlagsmithProvider(mock_flagsmith_client)
+
+    # When
+    result = provider.resolve_string_details(
+        key,
+        default_value="default",
+        evaluation_context=EvaluationContext(targeting_key="user-1"),
+    )
+
+    # Then
+    assert result.reason == Reason.STALE
 
 
 def test_resolve_environment_flag_has_static_reason_and_metadata(

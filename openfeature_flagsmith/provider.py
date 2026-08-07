@@ -329,7 +329,7 @@ class FlagsmithProvider(AbstractProvider):
 
     def _parse_reason(
         self, flag: typing.Any, evaluation_context: EvaluationContext
-    ) -> Reason:
+    ) -> typing.Union[str, Reason]:
         if flag.is_default:
             return Reason.DEFAULT
         if not flag.enabled:
@@ -337,6 +337,10 @@ class FlagsmithProvider(AbstractProvider):
         # Offline documents may be arbitrarily old.
         if getattr(self._client, "offline_mode", False):
             return Reason.STALE
+        # Engine reason, verbatim ("SPLIT; weight=30"), on flagsmith >=6.2.
+        engine_reason = getattr(flag, "reason", None)
+        if engine_reason is not None:
+            return engine_reason
         if evaluation_context.targeting_key:
             # A variant means a percentage-split assignment (SPLIT);
             # TARGETING_MATCH is reserved for segment matches.

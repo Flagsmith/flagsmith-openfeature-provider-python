@@ -184,14 +184,14 @@ typing = ["typing-extensions (>=4.8) ; python_version < \"3.11\""]
 
 [[package]]
 name = "flagsmith"
-version = "6.1.0"
+version = "6.2.0"
 description = "Flagsmith Python SDK"
 optional = false
 python-versions = "<4,>=3.10"
 groups = ["main"]
 files = [
-    {file = "flagsmith-6.1.0-py3-none-any.whl", hash = "sha256:c1adf56cd5cabcaf3fdd1b0dad8d3fc6e621a96bc2703b88c98ed9da91ead792"},
-    {file = "flagsmith-6.1.0.tar.gz", hash = "sha256:f62e74f3aa2220702a60edc76e1eb7ebca46a2967da938455efa4d1642364f46"},
+    {file = "flagsmith-6.2.0-py3-none-any.whl", hash = "sha256:2147c751461e8a056ad2a792105b9012938ee299b9108f92e457d396473aca1d"},
+    {file = "flagsmith-6.2.0.tar.gz", hash = "sha256:be0c144016c3cd5ea5c23de86df1d96b97c71a98594cf2b9a31a775f75ee8b11"},
 ]
 
 [package.dependencies]
