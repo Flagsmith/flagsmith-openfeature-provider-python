@@ -293,6 +293,25 @@ def test_resolve_string_details_when_flagsmith_error(
     )
 
 
+def test_resolve_string_details_when_feature_does_not_exist(
+    mock_flagsmith_client: MagicMock,
+) -> None:
+    # Given
+    key = "my_feature"
+    default_value = "default"
+
+    provider = FlagsmithProvider(mock_flagsmith_client)
+    mock_flagsmith_client.get_environment_flags.return_value = Flags({})
+
+    # When
+    with pytest.raises(FlagNotFoundError) as e:
+        provider.resolve_string_details(key, default_value=default_value)
+
+    # Then
+    assert e.value.error_code == ErrorCode.FLAG_NOT_FOUND
+    assert e.value.error_message == f"Flag '{key}' was not found."
+
+
 def test_identity_flags_are_used_if_targeting_key_provided(
     mock_flagsmith_client: MagicMock,
 ) -> None:
