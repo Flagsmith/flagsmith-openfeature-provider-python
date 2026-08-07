@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.0.0](https://github.com/Flagsmith/flagsmith-openfeature-provider-python/compare/v0.2.0...v1.0.0) (2026-08-07)
+
+
+### ⚠ BREAKING CHANGES
+
+* implement experimentation tracking ([#37](https://github.com/Flagsmith/flagsmith-openfeature-provider-python/issues/37))
+
+### Features
+
+* implement experimentation tracking ([#37](https://github.com/Flagsmith/flagsmith-openfeature-provider-python/issues/37)) ([897350a](https://github.com/Flagsmith/flagsmith-openfeature-provider-python/commit/897350a3538aa036f9914a6f7ecb8b049c2cc369))
+
+
+### Bug Fixes
+
+* `FlagNotFound` not raised for non-existing features ([2a14ffa](https://github.com/Flagsmith/flagsmith-openfeature-provider-python/commit/2a14ffa1f1022655287cce38f88da3c3c73a198e))
+
 ## [0.2.0](https://github.com/Flagsmith/flagsmith-openfeature-provider-python/compare/v0.1.6...v0.2.0) (2026-04-22)
 
 
