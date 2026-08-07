@@ -337,10 +337,15 @@ class FlagsmithProvider(AbstractProvider):
         # Offline documents may be arbitrarily old.
         if getattr(self._client, "offline_mode", False):
             return Reason.STALE
-        # Engine reason, verbatim ("SPLIT; weight=30"), on flagsmith >=6.2.
-        engine_reason = getattr(flag, "reason", None)
-        if engine_reason is not None:
-            return engine_reason
+        client_reason = getattr(flag, "reason", None)
+        if client_reason is not None:
+            # The Flagsmith client's DEFAULT means the environment default
+            # state was served; OpenFeature reserves DEFAULT for the code
+            # default.
+            # TODO remove when https://github.com/Flagsmith/flagsmith-engine/issues/341 is addressed
+            if str(client_reason).split(";", 1)[0].strip() == "DEFAULT":
+                return Reason.STATIC
+            return client_reason
         if evaluation_context.targeting_key:
             # A variant means a percentage-split assignment (SPLIT);
             # TARGETING_MATCH is reserved for segment matches.

@@ -652,7 +652,7 @@ requires_engine_reasons = pytest.mark.skipif(
 @requires_engine_reasons
 @pytest.mark.parametrize(
     "engine_reason",
-    ["SPLIT; weight=50.0", "TARGETING_MATCH; segment=premium", "DEFAULT"],
+    ["SPLIT; weight=50.0", "TARGETING_MATCH; segment=premium"],
 )
 def test_engine_reason_is_forwarded_verbatim(
     mock_flagsmith_client: MagicMock, engine_reason: str
@@ -682,6 +682,36 @@ def test_engine_reason_is_forwarded_verbatim(
 
     # Then
     assert result.reason == engine_reason
+
+
+@requires_engine_reasons
+def test_engine_default_reason_maps_to_static(
+    mock_flagsmith_client: MagicMock,
+) -> None:
+    # Given
+    key = "my_feature"
+    mock_flagsmith_client.get_identity_flags.return_value = Flags(
+        {
+            key: Flag(
+                feature_id=1,
+                feature_name=key,
+                enabled=True,
+                value="v",
+                reason="DEFAULT",
+            )
+        }
+    )
+    provider = FlagsmithProvider(mock_flagsmith_client)
+
+    # When
+    result = provider.resolve_string_details(
+        key,
+        default_value="default",
+        evaluation_context=EvaluationContext(targeting_key="user-1"),
+    )
+
+    # Then
+    assert result.reason == Reason.STATIC
 
 
 @requires_engine_reasons
