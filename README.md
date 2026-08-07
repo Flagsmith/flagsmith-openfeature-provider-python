@@ -60,40 +60,85 @@ provider = FlagsmithProvider(
 The provider can then be used with the OpenFeature client as per
 [the documentation](https://openfeature.dev/docs/reference/concepts/evaluation-api#setting-a-provider).
 
-### Tracking
+### Tracking and experimentation
 
-The provider supports the [OpenFeature tracking API](https://openfeature.dev/specification/sections/tracking/), which lets you associate user actions with feature flag evaluations for experimentation.
+The provider supports the [OpenFeature tracking API](https://openfeature.dev/specification/sections/tracking/) (an experimental OpenFeature capability), which lets you record custom events and flag **exposures** for experimentation.
 
-Tracking requires pipeline analytics to be enabled on the **Flagsmith client** (available from `flagsmith` version 5.2.0). The provider acts as a thin delegate — all buffering and flushing is managed by the client.
+Tracking requires events to be enabled on the **Flagsmith client** (`flagsmith` ≥5.5). The provider acts as a thin delegate — all buffering and flushing is managed by the client.
 
 ```python
-from flagsmith import Flagsmith, PipelineAnalyticsConfig
+from flagsmith import Flagsmith
 from openfeature import api
-from openfeature.evaluation_context import EvaluationContext
-from openfeature.track import TrackingEventDetails
-from openfeature_flagsmith.provider import FlagsmithProvider
+from openfeature_flagsmith import FlagsmithProvider
 
-# Enable pipeline analytics on the Flagsmith client
 client = Flagsmith(
     environment_key="your-environment-key",
-    pipeline_analytics_config=PipelineAnalyticsConfig(
-        analytics_server_url="https://analytics-collector.flagsmith.com/",
-        max_buffer_items=1000,      # optional, default 1000
-        flush_interval_seconds=10,  # optional, default 10s
+    enable_events=True,
+)
+
+provider = FlagsmithProvider(client=client)
+api.set_provider(provider)
+of_client = api.get_client()
+```
+
+If events are not enabled on the Flagsmith client, all tracking calls are silently dropped.
+
+#### Recording exposures
+
+An **exposure** marks an identity as having experienced an experiment variant. Exposures are never recorded automatically: evaluating a flag does not expose anyone. There are three ways to record them, from most to least recommended.
+
+**1. The exposure hook (recommended).** Attach `FlagsmithExposureHook` to the evaluations that *are* your experiment — attaching the hook is the experiment declaration:
+
+```python
+from openfeature.evaluation_context import EvaluationContext
+from openfeature.flag_evaluation import FlagEvaluationOptions
+from openfeature_flagsmith import FlagsmithExposureHook
+
+hook = FlagsmithExposureHook(provider)
+
+details = of_client.get_string_details(
+    "my_experiment_flag",
+    "control",
+    EvaluationContext(targeting_key="user-123"),
+    FlagEvaluationOptions(hooks=[hook]),
+)
+```
+
+The hook records an exposure only when the flag resolved with a variant and reason `SPLIT` — a multivariate percentage-split assignment (enabled, identified, not offline). With `flagsmith` ≥6.2 resolution reasons come from the Flagsmith engine (e.g. `SPLIT; weight=30`; the engine's `DEFAULT` maps to `STATIC`); on older SDKs or APIs the provider infers them. Repeated evaluations are safe: duplicate exposures are deduplicated downstream.
+
+**2. Explicit `track()`.** Use the reserved `feature_flag.exposure` event name when you need to record an exposure decoupled from evaluation:
+
+```python
+from openfeature.track import TrackingEventDetails
+from openfeature_flagsmith import EXPOSURE_TRACKING_EVENT
+
+# With an explicit variant: sent as rendered.
+of_client.track(
+    EXPOSURE_TRACKING_EVENT,
+    evaluation_context=EvaluationContext(targeting_key="user-123"),
+    tracking_event_details=TrackingEventDetails(
+        attributes={"flag_key": "my_experiment_flag", "variant": "treatment"}
     ),
 )
 
-api.set_provider(FlagsmithProvider(client=client))
-of_client = api.get_client()
-
-# Flag evaluations are tracked automatically — no extra code needed
-variant = of_client.get_string_value(
-    "checkout-variant",
-    "control",
+# Without a variant: the provider resolves the flag for the targeting key and
+# records the exposure only if the flag exists, is enabled and has a variant.
+of_client.track(
+    EXPOSURE_TRACKING_EVENT,
     evaluation_context=EvaluationContext(targeting_key="user-123"),
+    tracking_event_details=TrackingEventDetails(
+        attributes={"flag_key": "my_experiment_flag"}
+    ),
 )
+```
 
-# Track a custom event explicitly
+**3. The native Flagsmith client.** `client.get_experiment_flag(...)` / `client.track_exposure_event(...)` work as documented in the [Flagsmith docs](https://docs.flagsmith.com/) and share the same event pipeline.
+
+#### Custom events
+
+Any other event name is forwarded as a plain Flagsmith event. `TrackingEventDetails.value` must be numeric and is sent as the event value; `attributes` become event metadata; context traits are attached to the event.
+
+```python
 of_client.track(
     "purchase",
     evaluation_context=EvaluationContext(
@@ -107,7 +152,11 @@ of_client.track(
 )
 ```
 
-If `pipeline_analytics_config` is not set on the Flagsmith client, calls to `track()` are silently ignored.
+#### Caveats
+
+- **Anonymous contexts**: exposures require a `targeting_key`; without one they are skipped (logged at info).
+- **Reserved names**: event names starting with `$` are reserved for Flagsmith system events and are dropped with a warning — use `EXPOSURE_TRACKING_EVENT` to record exposures.
+- **Transient identities** (Python provider only, remote evaluation only): set the context attribute `"transient": True` to evaluate an identity without persisting it. The variant-less exposure path honors it too.
 
 ### Evaluation Context
 

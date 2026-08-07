@@ -37,3 +37,28 @@ jobs:
 
       - name: Run Tests
         run: poetry run pytest
+
+  test-sdk-floor:
+    runs-on: ubuntu-latest
+    name: Pytest against the minimum supported flagsmith version
+
+    steps:
+      - name: Cloning repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install poetry
+          poetry install --no-root
+          poetry run pip install flagsmith==5.5.0
+
+      - name: Run Tests
+        run: poetry run pytest
